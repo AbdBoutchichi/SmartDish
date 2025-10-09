@@ -3,6 +3,7 @@ package com.springbootTemplate.univ.soa.exception;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -59,6 +60,21 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
     }
 
+    // ✅ NOUVEAU : Gestion de l'accès refusé (403)
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex) {
+        log.error("❌ Accès refusé: {}", ex.getMessage());
+
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.FORBIDDEN.value())
+                .error("Forbidden")
+                .message("Vous n'avez pas les permissions nécessaires pour effectuer cette action")
+                .build();
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidationErrors(MethodArgumentNotValidException ex) {
         log.error("❌ Erreur de validation: {}", ex.getMessage());
@@ -79,9 +95,10 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
+    // ✅ AMÉLIORÉ : Log complet de la stack trace
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGlobalException(Exception ex) {
-        log.error("❌ Erreur interne: {}", ex.getMessage(), ex);
+        log.error("❌ Erreur interne non gérée: ", ex); // Affiche toute la stack trace
 
         ErrorResponse error = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())

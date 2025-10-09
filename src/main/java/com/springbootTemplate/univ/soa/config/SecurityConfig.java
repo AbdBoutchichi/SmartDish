@@ -22,7 +22,7 @@ import java.util.Arrays;
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity
+@EnableMethodSecurity(prePostEnabled = true)
 @RequiredArgsConstructor
 public class SecurityConfig {
 
@@ -37,19 +37,28 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .authorizeHttpRequests(auth -> auth
-                                // Endpoints totalement publics pour dev
-                                .requestMatchers(
-                                        "/**",                 // Permet tout pour tests dev
-                                        "/actuator/**",
-                                        "/swagger-ui/**",
-                                        "/v3/api-docs/**"
-                                ).permitAll()
-                        // Pour prod, tu peux remettre cette ligne :
-                        // .anyRequest().authenticated()
-                );
-
-        // Pour dev, on peut commenter le filtre JWT
-        // .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                        // ✅ Endpoints publics (sans authentification)
+                        .requestMatchers(
+                                "/api/utilisateurs/register",
+                                "/api/utilisateurs/login",
+                                "/api/utilisateurs/health",
+                                "/actuator/**",
+                                // 🔥 Ajout de TOUS les patterns Swagger possibles
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/v3/api-docs/**",
+                                "/v3/api-docs",
+                                "/api-docs/**",
+                                "/swagger-resources/**",
+                                "/configuration/ui",
+                                "/configuration/security",
+                                "/webjars/**"
+                        ).permitAll()
+                        // ✅ Tous les autres endpoints nécessitent une authentification
+                        .anyRequest().authenticated()
+                )
+                // ✅ Ajout du filtre JWT AVANT le filtre d'authentification
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
@@ -71,6 +80,7 @@ public class SecurityConfig {
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);
+        configuration.setExposedHeaders(Arrays.asList("Authorization"));
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
