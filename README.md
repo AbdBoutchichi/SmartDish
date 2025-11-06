@@ -1,392 +1,282 @@
-# 🍳 SmartDish - Template Microservices
+# 🗄️ ms-persistance - Microservice Persistance
 
 ## 📖 Vue d'ensemble
 
-Ce projet constitue le **template parent** pour tous les microservices de l'application **SmartDish**. Il s'agit d'un générateur de recettes intelligent qui recommande des plats à l'utilisateur en fonction des ingrédients saisis et de ses retours. Le système intègre un agent d'apprentissage par renforcement (RL) qui ajuste ses recommandations au fil du temps.
+Le **microservice Persistance** est le service central de gestion des données pour l'application **SmartDish**. Il centralise tous les accès à la base de données MySQL et expose une API REST pour les autres microservices.
 
-## 🏗️ Architecture Microservices
+### Responsabilités
 
-Cette application sera composée de plusieurs microservices, chacun ayant sa propre responsabilité :
+- 🗄️ Gestion centralisée des données MySQL
+- 🔐 Validation des données et règles métier
+- 🔗 Gestion des relations entre entités
+- 📊 CRUD complet (Create, Read, Update, Delete)
+- ✅ Intégrité référentielle
 
-- **🔐 ms-authentification** - Gestion de l'authentification et des utilisateurs
-- **🥗 ms-recette** - Gestion des recettes et des ingrédients
-- **🤖 ms-feedback** - Gestion des retours utilisateurs et moteur de recommandation avec IA/RL
+## 🏗️ Architecture
 
-## 🎯 Objectif du Template
-
-Ce template fournit :
-- ✅ Configuration complète de l'environnement de développement avec **Docker Compose**
-- ✅ Connexions aux bases de données (MySQL + MongoDB)
-- ✅ Stockage MinIO pour les fichiers
-- ✅ Interfaces d'administration web
-- ✅ Configuration sécurisée avec variables d'environnement
-- ✅ Structure de projet Spring Boot standardisée
-
-## 🐳 Docker Compose - Standardisation
-
-**Docker Compose est utilisé pour :**
-- ✅ **Exécution locale standardisée** - Tous les développeurs auront le même environnement
-- ✅ **Configuration unifiée** - Même version des bases de données, même ports, mêmes services
-- ✅ **Isolation des services** - Chaque microservice a ses propres ressources
-- ✅ **Déploiement simplifié** - Un seul `docker-compose up -d` pour tout démarrer
-
-Cela garantit que l'environnement de développement soit **identique chez tous les contributeurs**.
-
-## 🔐 Gestion du fichier .env
-
-**⚠️ IMPORTANT - Configuration sécurisée :**
-
-Le fichier `.env` contenant les configurations sensibles (mots de passe, clés) **ne sera PAS inclus dans le repository** pour des raisons de sécurité.
-
-**Processus de récupération du .env :**
-1. Le fichier `.env` sera **fourni individuellement par l'administrateur projet**
-2. Distribution via **message privé** ou **canal sécurisé du groupe projet**
-3. **Placer le fichier `.env` reçu à la racine du projet**
-4. Ne jamais commiter ce fichier (déjà protégé par .gitignore)
-
-```bash
-# Structure attendue :
-votre-projet/
-├── .env                 # ← Fichier reçu de l'administrateur
-├── docker-compose.yml
-└── ...
+```
+┌──────────────┐                    ┌──────────────┐
+│ ms-feedback  │───┐                │              │
+└──────────────┘   │                │              │
+                   │   HTTP REST    │              │
+┌──────────────┐   ├───────────────>│ms-persistance│
+│ ms-recette   │───┤                │  (Port 8090) │
+└──────────────┘   │                │              │
+                   │                │              │
+┌──────────────┐   │                │              │
+│ms-utilisateur│───┘                │              │
+└──────────────┘                    └──────┬───────┘
+                                           │
+                                           ▼
+                                    ┌──────────────┐
+                                    │    MySQL     │
+                                    │  (Port 3307) │
+                                    └──────────────┘
 ```
 
-## 🔄 Maintenir votre microservice à jour
+### Stack Technologique
 
-### Importance du rebase du template
+- **Framework** : Spring Boot 3.5.6
+- **Langage** : Java 21
+- **Base de données** : MySQL 8.0
+- **ORM** : JPA / Hibernate
+- **Build** : Maven 3.8+
+- **Documentation** : Swagger/OpenAPI
 
-Le template parent est régulièrement mis à jour avec :
-- ✅ **Nouvelles fonctionnalités** - Améliorations de l'infrastructure
-- ✅ **Corrections de sécurité** - Mise à jour des dépendances et configurations
-- ✅ **Optimisations** - Performance et bonnes pratiques
-- ✅ **Nouvelles versions** - Spring Boot, bases de données, Docker
+## 🚀 Installation
 
-**⚠️ Il est ESSENTIEL de maintenir votre microservice synchronisé avec le template.**
+### Démarrage
 
-### Comment faire le rebase du template
-
-#### 1. Configuration initiale (à faire une seule fois)
+#### 1. Cloner le projet
 
 ```bash
-# Ajouter le template comme remote "upstream"
-git remote add upstream https://github.com/votre-org/SmartDish.git
-
-# Vérifier les remotes configurés
-git remote -v
-# origin    https://github.com/votre-username/ms-authentification.git (fetch)
-# origin    https://github.com/votre-username/ms-authentification.git (push)
-# upstream  https://github.com/votre-org/SmartDish.git (fetch)
-# upstream  https://github.com/votre-org/SmartDish.git (push)
+git clone https://github.com/Sabine22-alt/ms-persistance.git
+cd ms-persistance
 ```
 
-#### 2. Processus de mise à jour (à répéter régulièrement)
+#### 2. Configurer l'environnement
+
+Récupérer le fichier `.env` auprès de l'administrateur et le placer à la racine du projet.
+
+#### 3. Première exécution - Créer les tables
 
 ```bash
-# 1. S'assurer d'être sur la branche principale
-git checkout main
-
-# 2. Sauvegarder vos modifications locales
-git stash
-
-# 3. Récupérer les dernières modifications du template
-git fetch upstream
-
-# 4. Rebaser votre microservice sur le template mis à jour
-git rebase upstream/main
-
-# 5. Résoudre les conflits s'il y en a (voir section ci-dessous)
-
-# 6. Restaurer vos modifications locales
-git stash pop
-
-# 7. Pousser les modifications
-git push origin main --force-with-lease
-```
-
-#### 3. Résolution des conflits de rebase
-
-En cas de conflits, Git vous indiquera les fichiers concernés :
-
-```bash
-# Voir les fichiers en conflit
-git status
-
-# Éditer manuellement chaque fichier en conflit
-# Garder vos adaptations spécifiques (noms, ports, etc.)
-# Intégrer les nouvelles fonctionnalités du template
-
-# Marquer les conflits comme résolus
-git add fichier-resolu.java
-git add autre-fichier-resolu.properties
-
-# Continuer le rebase
-git rebase --continue
-```
-
-#### 4. Vérification après rebase
-
-```bash
-# Vérifier que tout compile
-mvn clean compile
-
-# Tester l'infrastructure
-docker-compose down
-docker-compose up -d
-
-# Tester l'application
+# Modifier .env : JPA_DDL_AUTO=create
 mvn spring-boot:run
+
+# ✅ Les 7 tables sont créées automatiquement
 ```
 
-### Conflits courants et résolutions
-
-| Type de conflit | Action recommandée |
-|-----------------|-------------------|
-| **pom.xml** | Garder votre `artifactId` et `name`, intégrer nouvelles dépendances |
-| **application.properties** | Garder votre `spring.application.name`, intégrer nouvelles configs |
-| **Package Java** | Garder votre package, adapter les nouveaux imports si nécessaire |
-| **docker-compose.yml** | Garder vos ports personnalisés, intégrer nouveaux services |
-
-### Planning de mise à jour recommandé
-
-- 🔄 **Hebdomadaire** - Vérifier s'il y a des mises à jour du template
-- 📅 **Avant chaque release** - Obligatoire avant de déployer en production
-- 🚨 **Immédiatement** - En cas d'alerte de sécurité du template
-
-### Commandes utiles pour le suivi
+#### 5. Exécutions suivantes - Mode update
 
 ```bash
-# Voir les commits du template non intégrés
-git log --oneline HEAD..upstream/main
-
-# Voir les différences avec le template
-git diff upstream/main
-
-# Voir l'historique des rebases
-git reflog
-```
-
-### En cas de problème lors du rebase
-
-```bash
-# Annuler le rebase en cours
-git rebase --abort
-
-# Revenir à l'état avant le rebase
-git reset --hard HEAD@{1}
-
-# Demander de l'aide avec les logs
-git log --oneline --graph -10
-```
-
-## 🚀 Démarrage rapide
-
-### Prérequis
-- Java 21+
-- Maven 3.6+
-- Docker & Docker Compose
-- Git
-
-### Installation
-
-1. **Cloner le template** (ou forker pour créer un nouveau microservice)
-```bash
-git clone https://github.com/votre-org/SmartDish.git
-cd SmartDish
-```
-
-2. **Récupérer le fichier .env**
-```bash
-# Attendre de recevoir le fichier .env de l'administrateur
-# Le placer à la racine du projet
-```
-
-3. **Démarrer l'infrastructure avec Docker Compose**
-```bash
-docker-compose up -d
-```
-
-4. **Vérifier que tous les services sont en ligne**
-```bash
-docker-compose ps
-# Attendre que tous les services soient "Healthy"
-```
-
-5. **Compiler et démarrer l'application**
-```bash
-mvn clean install
+# Modifier .env : JPA_DDL_AUTO=update
 mvn spring-boot:run
 ```
 
 ## 🔗 Accès aux services
 
-Une fois tous les services démarrés :
+| Service | URL |
+|---------|-----|
+| **Swagger UI** | http://localhost:8090/swagger-ui.html |
+| **phpMyAdmin** | http://localhost:8080 |
 
-| Service | URL | Accès |
-|---------|-----|-------|
-| **Application Spring Boot** | http://localhost:8090 | Direct |
-| **PhpMyAdmin (MySQL)** | http://localhost:8080 | Interface d'administration |
-| **Mongo Express (MongoDB)** | http://localhost:8081 | Interface d'administration |
-| **MinIO Console** | http://localhost:9001 | Interface d'administration |
+## 📡 API Endpoints
 
-*Les identifiants d'accès sont configurés dans le fichier .env fourni par l'administrateur.*
+### Utilisateurs
 
-## 🔧 Adapter le template pour un nouveau microservice
+| Méthode | Endpoint | Description |
+|---------|----------|-------------|
+| `GET` | `/api/persistance/utilisateurs` | Liste tous les utilisateurs |
+| `GET` | `/api/persistance/utilisateurs/{id}` | Obtenir un utilisateur |
+| `POST` | `/api/persistance/utilisateurs` | Créer un utilisateur |
+| `PUT` | `/api/persistance/utilisateurs/{id}` | Mettre à jour un utilisateur |
+| `DELETE` | `/api/persistance/utilisateurs/{id}` | Supprimer un utilisateur |
 
-### 1. Configuration du projet
+### Aliments
 
-**a) Modifier le `pom.xml`**
-```xml
-<groupId>com.smartdish</groupId>
-<artifactId>ms-nom-de-votre-microservice</artifactId>
-<name>ms-nom-de-votre-microservice</name>
-<description>Description de votre microservice</description>
+| Méthode | Endpoint | Description |
+|---------|----------|-------------|
+| `GET` | `/api/persistance/aliments` | Liste tous les aliments |
+| `GET` | `/api/persistance/aliments/{id}` | Obtenir un aliment |
+| `POST` | `/api/persistance/aliments` | Créer un aliment |
+| `PUT` | `/api/persistance/aliments/{id}` | Mettre à jour un aliment |
+| `DELETE` | `/api/persistance/aliments/{id}` | Supprimer un aliment |
+
+### Recettes
+
+| Méthode | Endpoint | Description |
+|---------|----------|-------------|
+| `GET` | `/api/persistance/recettes` | Liste toutes les recettes |
+| `GET` | `/api/persistance/recettes/{id}` | Obtenir une recette |
+| `POST` | `/api/persistance/recettes` | Créer une recette |
+| `PUT` | `/api/persistance/recettes/{id}` | Mettre à jour une recette |
+| `DELETE` | `/api/persistance/recettes/{id}` | Supprimer une recette |
+
+### Feedbacks
+
+| Méthode | Endpoint | Description |
+|---------|----------|-------------|
+| `GET` | `/api/persistance/feedbacks` | Liste tous les feedbacks |
+| `GET` | `/api/persistance/feedbacks/{id}` | Obtenir un feedback |
+| `GET` | `/api/persistance/feedbacks/utilisateur/{id}` | Feedbacks d'un utilisateur |
+| `GET` | `/api/persistance/feedbacks/recette/{id}` | Feedbacks d'une recette |
+| `POST` | `/api/persistance/feedbacks` | Créer un feedback |
+| `PUT` | `/api/persistance/feedbacks/{id}` | Mettre à jour un feedback |
+| `DELETE` | `/api/persistance/feedbacks/{id}` | Supprimer un feedback |
+
+## 🗂️ Structure du projet
+
+```
+ms-persistance/
+├── src/main/java/.../
+│   ├── config/
+│   ├── controller/
+│   │   ├── UtilisateurController.java
+│   │   ├── AlimentController.java
+│   │   ├── RecetteController.java
+│   │   └── FeedbackController.java
+│   ├── dto/
+│   ├── exception/
+│   ├── mapper/
+│   ├── model/
+│   │   ├── Utilisateur.java
+│   │   ├── Aliment.java
+│   │   ├── Recette.java
+│   │   ├── Ingredient.java
+│   │   ├── Etape.java
+│   │   └── Feedback.java
+│   ├── repository/
+│   └── service/
+├── .env                 # Fourni par l'admin (non versionné)
+└── pom.xml
 ```
 
-**b) Renommer le package principal**
-```bash
-# Déplacer de :
-src/main/java/com/springbootTemplate/univ/soa/
-# Vers :
-src/main/java/com/smartdish/[nom-microservice]/
-```
+## 📊 Base de données
 
-**c) Mettre à jour le fichier principal `Application.java`**
+### 7 Tables créées automatiquement
+
+1. **utilisateurs** - Comptes utilisateurs
+2. **aliments** - Catalogue d'aliments
+3. **recettes** - Recettes de cuisine
+4. **ingredients** - Ingrédients des recettes (liaison)
+5. **etapes** - Étapes de préparation
+6. **feedbacks** - Notes et commentaires
+7. **aliments_exclus** - Aliments exclus par utilisateur (liaison)
+
+### Types d'énumérations
+
+- **Role** : `USER`, `ADMIN`
+- **CategorieAliment** : `FRUIT`, `LEGUME`, `VIANDE`, `POISSON`, `CEREALE`, `LAITIER`, `EPICE`, `GLUTEN`
+- **Difficulte** : `FACILE`, `MOYEN`, `DIFFICILE`
+- **Unite** : `GRAMME`, `KILOGRAMME`, `LITRE`, `MILLILITRE`, `CUILLERE_A_SOUPE`, `CUILLERE_A_CAFE`, `SACHET`, `UNITE`
+
+## 🛡️ Validations implémentées
+
+### Utilisateurs
+- Email unique et format valide
+- Mot de passe min 6 caractères (hashé BCrypt)
+- Nom et prénom obligatoires
+
+### Aliments
+- Nom unique (2-100 caractères)
+- Catégorie obligatoire
+
+### Recettes
+- Titre obligatoire (3-200 caractères)
+- Temps total > 0 et ≤ 1440 minutes
+- Calories ≥ 0 et ≤ 10000
+
+### Feedbacks
+- Utilisateur et recette doivent exister
+- Évaluation entre 1 et 5
+- **Un utilisateur ne peut noter qu'une fois une recette**
+
+---
+
+## 🔄 Pour les autres microservices
+
+### Si votre microservice accède directement à MySQL
+
+Vous devez migrer vers l'architecture HTTP. Voici les étapes :
+
+#### 1. Créer un client HTTP (exemple)
+
 ```java
-package com.smartdish.[nom-microservice];
+@Component
+public class PersistanceClient {
+    private final RestTemplate restTemplate;
+    
+    @Value("${persistance.service.url}")
+    private String persistanceServiceUrl;
 
-@SpringBootApplication
-public class [NomMicroservice]Application {
-    public static void main(String[] args) {
-        SpringApplication.run([NomMicroservice]Application.class, args);
+    // Récupérer toutes les recettes
+    public List<RecetteDTO> getAllRecettes() {
+        String url = persistanceServiceUrl + "/api/persistance/recettes";
+        ResponseEntity<List<RecetteDTO>> response = restTemplate.exchange(
+                url, HttpMethod.GET, null,
+                new ParameterizedTypeReference<List<RecetteDTO>>() {}
+        );
+        return response.getBody();
     }
 }
 ```
 
-### 2. Configuration des bases de données
+#### 2. Mettre à jour application.properties
 
-**a) Modifier le fichier `.env` (reçu de l'administrateur)**
-```env
-# Adapter selon votre microservice
-MYSQL_DATABASE=nom_microservice_db
-MONGO_DATABASE=nom_microservice_mongodb
-
-# Changer les ports si nécessaire pour éviter les conflits
-SERVER_PORT=8091  # ou autre port libre
-MYSQL_PORT=3308   # si vous avez plusieurs microservices
-MONGO_PORT=27018  # si vous avez plusieurs microservices
-```
-
-**b) Mettre à jour `application.properties`**
 ```properties
-spring.application.name=nom-de-votre-microservice
+# Retirer la configuration MySQL directe
+spring.autoconfigure.exclude=\
+  org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration,\
+  org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+
+# Ajouter l'URL du service Persistance
+persistance.service.url=${PERSISTANCE_SERVICE_URL}
 ```
 
-### 3. Structure recommandée pour chaque microservice
+#### 3. Mettre à jour pom.xml
 
-```
-src/main/java/com/smartdish/[microservice]/
-├── Application.java
-├── config/
-│   ├── DatabaseConfig.java
-│   └── SecurityConfig.java
-├── controller/
-│   ├── [Entity]Controller.java
-│   └── HealthController.java
-├── service/
-│   ├── [Entity]Service.java
-│   └── [Entity]ServiceImpl.java
-├── repository/
-│   ├── [Entity]Repository.java
-│   └── [Entity]MongoRepository.java
-├── model/
-│   ├── entity/
-│   │   └── [Entity].java
-│   └── dto/
-│       ├── [Entity]RequestDto.java
-│       └── [Entity]ResponseDto.java
-└── exception/
-    ├── GlobalExceptionHandler.java
-    └── [Custom]Exception.java
+```xml
+<!-- Retirer -->
+<!-- <dependency>spring-boot-starter-data-jpa</dependency> -->
+<!-- <dependency>mysql-connector-j</dependency> -->
+
+<!-- Garder -->
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-web</artifactId>
+</dependency>
 ```
 
-## 🗃️ Configuration des bases de données par microservice
+#### 4. Mettre à jour .env
 
-### Recommandations par microservice :
-
-| Microservice | Base principale | Base secondaire | Justification |
-|--------------|----------------|-----------------|---------------|
-| **ms-authentification** | MySQL | - | Données relationnelles critiques |
-| **ms-recette** | MySQL | MongoDB | Recettes structurées + métadonnées flexibles |
-| **ms-feedback** | MongoDB | - | Données non-structurées, ML/IA |
-
-## 🐳 Configuration Docker pour développement
-
-### Ports par défaut recommandés :
-
-| Microservice | Port App | Port MySQL | Port MongoDB |
-|--------------|----------|------------|--------------|
-| **ms-authentification** | 8091 | 3308 | 27018 |
-| **ms-recette** | 8092 | 3309 | 27019 |
-| **ms-feedback** | 8093 | 3310 | 27020 |
-
-### Commandes Docker pour chaque microservice
-
-```bash
-# Arrêter le template
-docker-compose down
-
-# Modifier le .env avec les nouveaux ports
-# Redémarrer avec la nouvelle configuration
-docker-compose up -d
+```env
+# Retirer : MYSQL_*, JPA_*
+# Ajouter :
+PERSISTANCE_SERVICE_URL=http://localhost:8090
 ```
 
-## 🚀 Pipeline CI/CD (En développement)
+### 📦 Exemple complet
 
-**🔄 Prochainement disponible :**
-- Pipeline CI/CD complète
-- Intégration Kubernetes pour le déploiement
-- Gestion des secrets avec Vault
-- Déploiement automatisé en environnements de test/production
-
-*Cette fonctionnalité est actuellement en cours de développement par l'équipe infrastructure.*
-
-## 🔒 Sécurité et bonnes pratiques
-
-### Variables d'environnement
-- ✅ Toujours utiliser le fichier `.env` fourni par l'administrateur
-- ✅ Ne jamais commiter le fichier `.env` (déjà dans .gitignore)
-- ✅ Signaler tout problème de configuration à l'administrateur
-
-### Base de données
-- ✅ Créer des utilisateurs spécifiques pour chaque microservice
-- ✅ Utiliser des bases de données séparées
-- ✅ Implémenter des migrations avec Flyway/Liquibase
-- ✅ Configurer les backup automatiques
-
-## 📚 Documentation détaillée
-
-- [Guide d'accès aux services](SERVICES_ACCESS.md)
-- [Guide de rebase avec le template](GUIDE_REBASE_TEMPLATE.md)
-- [Configuration Docker](docker-compose.yml)
-
-## 🤝 Contribution
-
-1. Forker ce template pour créer un nouveau microservice
-2. Recevoir le fichier `.env` de l'administrateur
-3. Suivre les conventions de nommage
-4. Mettre à jour la documentation
-5. Tester localement avec Docker Compose
-6. Créer une Pull Request avec une description détaillée
-
-## 📞 Support
-
-Pour toute question sur ce template ou l'architecture microservices :
-- Créer une issue sur ce repository
-- Consulter la documentation dans `/docs`
-- Contacter l'administrateur pour les questions de configuration
-- Signaler les problèmes d'environnement Docker
+Voir le microservice **[ms-feedback](https://github.com/nassimug/ms-feedback)** comme référence d'une migration réussie.
 
 ---
 
-🎯 **Ce template est conçu pour accélérer le développement des microservices SmartDish tout en garantissant une cohérence architecturale et une sécurité optimale.**
+## 🚀 Build production
+
+```bash
+# Créer le JAR
+mvn clean package -DskipTests
+
+# Lancer
+java -jar target/ms-persistance-1.0.0.jar
+```
+
+## 📚 Ressources
+
+- [Documentation Spring Boot](https://docs.spring.io/spring-boot/docs/current/reference/html/)
+- [Spring Data JPA](https://docs.spring.io/spring-data/jpa/docs/current/reference/html/)
+- [Swagger/OpenAPI](https://swagger.io/docs/)
+- [Exemple ms-feedback](https://github.com/nassimug/ms-feedback)
+
+---
