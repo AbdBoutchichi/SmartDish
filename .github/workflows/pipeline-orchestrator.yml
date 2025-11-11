@@ -65,6 +65,7 @@ jobs:
     needs: [setup-config, build-maven, check-coverage]
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    environment: BACKEND_ENVIRONMENT
     steps:
       - name: Vérifier les secrets dans le parent
         run: |

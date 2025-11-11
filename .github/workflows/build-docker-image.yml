@@ -27,6 +27,7 @@ jobs:
   build-docker:
     name: Build Docker Image
     runs-on: ubuntu-latest
+    environment: BACKEND_ENVIRONMENT
     permissions:
       contents: read
       packages: write
