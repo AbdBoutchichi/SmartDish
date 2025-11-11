@@ -58,11 +58,44 @@ jobs:
     secrets: inherit
 
   # ============================================
+  # 4.5. Test des secrets OCI (DEBUG)
+  # ============================================
+  test-secrets:
+    name: Test Secrets OCI
+    needs: [setup-config, build-maven, check-coverage]
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Vérifier les secrets dans le parent
+        run: |
+          echo "Test des secrets dans le workflow parent..."
+          
+          if [ -z "${{ secrets.OCI_USERNAME }}" ]; then
+            echo "❌ OCI_USERNAME est VIDE dans le workflow parent!"
+          else
+            echo "✅ OCI_USERNAME existe (longueur: ${#OCI_USERNAME})"
+          fi
+          
+          if [ -z "${{ secrets.OCI_AUTH_TOKEN }}" ]; then
+            echo "❌ OCI_AUTH_TOKEN est VIDE dans le workflow parent!"
+          else
+            echo "✅ OCI_AUTH_TOKEN existe"
+          fi
+          
+          if [ -z "${{ secrets.OCI_TENANCY_NAMESPACE }}" ]; then
+            echo "❌ OCI_TENANCY_NAMESPACE est VIDE dans le workflow parent!"
+          else
+            echo "✅ OCI_TENANCY_NAMESPACE existe: ${{ secrets.OCI_TENANCY_NAMESPACE }}"
+          fi
+        env:
+          OCI_USERNAME: ${{ secrets.OCI_USERNAME }}
+
+  # ============================================
   # 5. Build Docker Image
   # ============================================
   build-docker-image:
     name: Docker Image
-    needs: [setup-config, build-maven, check-coverage]
+    needs: [setup-config, build-maven, check-coverage, test-secrets]
     if: github.event_name != 'pull_request'
     uses: ./.github/workflows/build-docker-image.yml
     with:
