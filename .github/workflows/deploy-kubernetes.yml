@@ -55,7 +55,6 @@ jobs:
   deploy:
     name: Déployer sur ${{ inputs.environment }}
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -75,10 +74,17 @@ jobs:
           echo "Installation d'OCI CLI..."
           curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh -o install-oci-cli.sh
           bash install-oci-cli.sh --accept-all-defaults
+          
+          # Ajouter au PATH pour les prochains steps
           echo "$HOME/bin" >> $GITHUB_PATH
           
+          # Export pour ce step
+          export PATH="$HOME/bin:$PATH"
+          
           # Vérifier l'installation
-          ~/bin/oci --version
+          oci --version
+          
+          echo "✅ OCI CLI installé"
 
       - name: Configure OCI CLI
         env:
