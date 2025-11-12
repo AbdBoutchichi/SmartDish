@@ -150,6 +150,11 @@ jobs:
       OCI_AUTH_TOKEN: ${{ secrets.OCI_AUTH_TOKEN }}
       OCI_TENANCY_NAMESPACE: ${{ secrets.OCI_TENANCY_NAMESPACE }}
       OCI_KUBECONFIG: ${{ secrets.OCI_KUBECONFIG }}
+      OCI_CLI_USER: ${{ secrets.OCI_CLI_USER }}
+      OCI_CLI_FINGERPRINT: ${{ secrets.OCI_CLI_FINGERPRINT }}
+      OCI_CLI_TENANCY: ${{ secrets.OCI_CLI_TENANCY }}
+      OCI_CLI_REGION: ${{ secrets.OCI_CLI_REGION }}
+      OCI_CLI_KEY_CONTENT: ${{ secrets.OCI_CLI_KEY_CONTENT }}
       MYSQL_HOST: ${{ secrets.MYSQL_HOST }}
       MYSQL_USER: ${{ secrets.MYSQL_USER }}
       MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
