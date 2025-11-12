@@ -101,21 +101,13 @@ jobs:
           mkdir -p ~/.oci
           chmod 700 ~/.oci
           
-          # Créer le fichier de configuration
-          cat > ~/.oci/config << 'EOFCONFIG'
-[DEFAULT]
-user=$OCI_CLI_USER
-fingerprint=$OCI_CLI_FINGERPRINT
-tenancy=$OCI_CLI_TENANCY
-region=$OCI_CLI_REGION
-key_file=~/.oci/oci_api_key.pem
-EOFCONFIG
-          
-          # Substituer les variables
-          sed -i "s|\$OCI_CLI_USER|$OCI_CLI_USER|g" ~/.oci/config
-          sed -i "s|\$OCI_CLI_FINGERPRINT|$OCI_CLI_FINGERPRINT|g" ~/.oci/config
-          sed -i "s|\$OCI_CLI_TENANCY|$OCI_CLI_TENANCY|g" ~/.oci/config
-          sed -i "s|\$OCI_CLI_REGION|$OCI_CLI_REGION|g" ~/.oci/config
+          # Créer le fichier de configuration avec echo pour éviter les problèmes YAML
+          echo "[DEFAULT]" > ~/.oci/config
+          echo "user=$OCI_CLI_USER" >> ~/.oci/config
+          echo "fingerprint=$OCI_CLI_FINGERPRINT" >> ~/.oci/config
+          echo "tenancy=$OCI_CLI_TENANCY" >> ~/.oci/config
+          echo "region=$OCI_CLI_REGION" >> ~/.oci/config
+          echo "key_file=~/.oci/oci_api_key.pem" >> ~/.oci/config
           
           chmod 600 ~/.oci/config
           
@@ -212,33 +204,24 @@ EOFCONFIG
               CONTEXT_NAME=$(grep "current-context:" ~/.kube/config | awk '{print $2}')
               
               # Créer un nouveau kubeconfig avec le token
-              cat > ~/.kube/config << 'EOFKUBE'
-apiVersion: v1
-clusters:
-- cluster:
-    insecure-skip-tls-verify: true
-    server: SERVER_PLACEHOLDER
-  name: CLUSTER_NAME_PLACEHOLDER
-contexts:
-- context:
-    cluster: CLUSTER_NAME_PLACEHOLDER
-    user: USER_NAME_PLACEHOLDER
-  name: CONTEXT_NAME_PLACEHOLDER
-current-context: CONTEXT_NAME_PLACEHOLDER
-kind: Config
-preferences: {}
-users:
-- name: USER_NAME_PLACEHOLDER
-  user:
-    token: TOKEN_PLACEHOLDER
-EOFKUBE
-              
-              # Remplacer les placeholders
-              sed -i "s|SERVER_PLACEHOLDER|$SERVER|g" ~/.kube/config
-              sed -i "s|CLUSTER_NAME_PLACEHOLDER|$CLUSTER_NAME|g" ~/.kube/config
-              sed -i "s|USER_NAME_PLACEHOLDER|$USER_NAME|g" ~/.kube/config
-              sed -i "s|CONTEXT_NAME_PLACEHOLDER|$CONTEXT_NAME|g" ~/.kube/config
-              sed -i "s|TOKEN_PLACEHOLDER|$TOKEN|g" ~/.kube/config
+              echo "apiVersion: v1" > ~/.kube/config
+              echo "clusters:" >> ~/.kube/config
+              echo "- cluster:" >> ~/.kube/config
+              echo "    insecure-skip-tls-verify: true" >> ~/.kube/config
+              echo "    server: $SERVER" >> ~/.kube/config
+              echo "  name: $CLUSTER_NAME" >> ~/.kube/config
+              echo "contexts:" >> ~/.kube/config
+              echo "- context:" >> ~/.kube/config
+              echo "    cluster: $CLUSTER_NAME" >> ~/.kube/config
+              echo "    user: $USER_NAME" >> ~/.kube/config
+              echo "  name: $CONTEXT_NAME" >> ~/.kube/config
+              echo "current-context: $CONTEXT_NAME" >> ~/.kube/config
+              echo "kind: Config" >> ~/.kube/config
+              echo "preferences: {}" >> ~/.kube/config
+              echo "users:" >> ~/.kube/config
+              echo "- name: $USER_NAME" >> ~/.kube/config
+              echo "  user:" >> ~/.kube/config
+              echo "    token: $TOKEN" >> ~/.kube/config
               
               chmod 600 ~/.kube/config
               echo "✅ Kubeconfig modifié pour utiliser le token"
