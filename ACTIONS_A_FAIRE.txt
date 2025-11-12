@@ -104,15 +104,17 @@ ACTION IMMÉDIATE:
 
 5. Encodez le kubeconfig:
 
-   ATTENTION: La commande OCI a créé le fichier "USERPROFILE.kubeconfig" au lieu de ~/.kube/config
+   ⚠️  ATTENTION CRITIQUE: La commande OCI a créé "USERPROFILE.kubeconfig"
+   C'EST CE FICHIER qu'il faut encoder, PAS ~/.kube/config !
 
    Sur OCI Cloud Shell ou Linux/Mac:
    cat USERPROFILE.kubeconfig | base64 -w 0 > kubeconfig-base64.txt
 
-   OU si le fichier est dans ~/.kube/config:
-   cat ~/.kube/config | base64 -w 0 > kubeconfig-base64.txt
+   Vérifiez que le fichier contient un token (pas exec):
+   cat USERPROFILE.kubeconfig | grep -A 5 "user:"
+   Vous devez voir "token:" et PAS "exec:"
 
-   Sur Windows PowerShell (machine locale):
+   Sur Windows PowerShell (machine locale, si fichier dans .kube):
    [Convert]::ToBase64String([System.IO.File]::ReadAllBytes("$env:USERPROFILE\.kube\config")) > kubeconfig-base64.txt
 
 6. Mettez à jour le secret GitHub:
