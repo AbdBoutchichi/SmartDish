@@ -179,12 +179,15 @@ jobs:
         run: |
           echo "Déploiement des manifests Kubernetes..."
           
+          # Sanitiser le nom du microservice (remplacer les points par des tirets)
+          MICROSERVICE_NAME_SANITIZED=$(echo "${{ env.MICROSERVICE_NAME }}" | tr '.' '-' | tr '[:upper:]' '[:lower:]')
+          
           # Variables pour le template
-          export MICROSERVICE_NAME="${{ env.MICROSERVICE_NAME }}"
+          export MICROSERVICE_NAME="$MICROSERVICE_NAME_SANITIZED"
           export NAMESPACE="${{ env.NAMESPACE }}"
           export VERSION="${{ env.IMAGE_TAG }}"
           export IMAGE_TAG="${{ env.IMAGE_TAG }}"
-          export IMAGE_URL="cdg.ocir.io/${{ secrets.OCI_TENANCY_NAMESPACE }}/smartdish/${{ env.MICROSERVICE_NAME }}"
+          export IMAGE_URL="fra.ocir.io/${{ secrets.OCI_TENANCY_NAMESPACE }}/smartdish/$MICROSERVICE_NAME_SANITIZED"
           
           # Déterminer le nombre de replicas selon l'environnement
           if [ "${{ inputs.environment }}" == "production" ]; then
@@ -194,7 +197,8 @@ jobs:
           fi
           
           echo "Configuration du déploiement:"
-          echo "  - Microservice: $MICROSERVICE_NAME"
+          echo "  - Microservice original: ${{ env.MICROSERVICE_NAME }}"
+          echo "  - Microservice sanitized: $MICROSERVICE_NAME_SANITIZED"
           echo "  - Namespace: $NAMESPACE"
           echo "  - Image: $IMAGE_URL:$IMAGE_TAG"
           echo "  - Replicas: $REPLICAS"
@@ -208,33 +212,40 @@ jobs:
         run: |
           echo "Attente du déploiement complet..."
           
-          kubectl rollout status deployment/${{ env.MICROSERVICE_NAME }} -n ${{ env.NAMESPACE }} --timeout=5m || {
+          # Sanitiser le nom du microservice (même transformation)
+          MICROSERVICE_NAME_SANITIZED=$(echo "${{ env.MICROSERVICE_NAME }}" | tr '.' '-' | tr '[:upper:]' '[:lower:]')
+          
+          kubectl rollout status deployment/$MICROSERVICE_NAME_SANITIZED -n ${{ env.NAMESPACE }} --timeout=5m || {
             echo "❌ Le déploiement a échoué"
             echo ""
             echo "📋 Logs des pods :"
-            kubectl logs -l app=${{ env.MICROSERVICE_NAME }} -n ${{ env.NAMESPACE }} --tail=50 || true
+            kubectl logs -l app=$MICROSERVICE_NAME_SANITIZED -n ${{ env.NAMESPACE }} --tail=50 || true
             echo ""
             echo "📊 État des pods :"
             kubectl get pods -n ${{ env.NAMESPACE }}
             echo ""
             echo "🔍 Description du déploiement :"
-            kubectl describe deployment ${{ env.MICROSERVICE_NAME }} -n ${{ env.NAMESPACE }}
-            echo ""
-            echo "🔍 Événements récents :"
-            kubectl get events -n ${{ env.NAMESPACE }} --sort-by='.lastTimestamp' | tail -20
+            kubectl describe deployment $MICROSERVICE_NAME_SANITIZED -n ${{ env.NAMESPACE }}
             exit 1
+          }
+          
+          echo "✅ Déploiement terminé avec succès"
           }
           
           echo "✅ Déploiement réussi"
 
       - name: Display Deployment Info
         run: |
+          # Sanitiser le nom du microservice (même transformation)
+          MICROSERVICE_NAME_SANITIZED=$(echo "${{ env.MICROSERVICE_NAME }}" | tr '.' '-' | tr '[:upper:]' '[:lower:]')
+          
           echo "=========================================="
           echo "📦 INFORMATIONS DE DÉPLOIEMENT"
           echo "=========================================="
           echo ""
-          echo "🏷️  Microservice: ${{ env.MICROSERVICE_NAME }}"
-          echo "🏷️  Image: cdg.ocir.io/${{ secrets.OCI_TENANCY_NAMESPACE }}/smartdish/${{ env.MICROSERVICE_NAME }}:${{ env.IMAGE_TAG }}"
+          echo "🏷️  Microservice original: ${{ env.MICROSERVICE_NAME }}"
+          echo "🏷️  Microservice sanitized: $MICROSERVICE_NAME_SANITIZED"
+          echo "🏷️  Image: fra.ocir.io/${{ secrets.OCI_TENANCY_NAMESPACE }}/smartdish/$MICROSERVICE_NAME_SANITIZED:${{ env.IMAGE_TAG }}"
           echo "🌍 Namespace: ${{ env.NAMESPACE }}"
           echo "🌍 Environment: ${{ inputs.environment }}"
           echo "📅 Date: $(date)"
@@ -242,17 +253,17 @@ jobs:
           echo "=========================================="
           echo "📊 ÉTAT DES RESSOURCES"
           echo "=========================================="
-          kubectl get all -n ${{ env.NAMESPACE }} -l app=${{ env.MICROSERVICE_NAME }}
+          kubectl get all -n ${{ env.NAMESPACE }} -l app=$MICROSERVICE_NAME_SANITIZED
           echo ""
           echo "=========================================="
           echo "🔗 SERVICES EXPOSÉS"
           echo "=========================================="
-          kubectl get svc -n ${{ env.NAMESPACE }} -l app=${{ env.MICROSERVICE_NAME }}
+          kubectl get svc -n ${{ env.NAMESPACE }} -l app=$MICROSERVICE_NAME_SANITIZED
           echo ""
           echo "=========================================="
           echo "📝 LOGS DES PODS (dernières 20 lignes)"
           echo "=========================================="
-          kubectl logs -l app=${{ env.MICROSERVICE_NAME }} -n ${{ env.NAMESPACE }} --tail=20 || true
+          kubectl logs -l app=$MICROSERVICE_NAME_SANITIZED -n ${{ env.NAMESPACE }} --tail=20 || true
           echo ""
           echo "✅ Déploiement CD terminé avec succès"
 
