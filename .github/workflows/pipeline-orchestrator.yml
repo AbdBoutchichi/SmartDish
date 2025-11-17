@@ -148,6 +148,13 @@ jobs:
     secrets:
       OCI_KUBECONFIG: ${{ secrets.OCI_KUBECONFIG }}
       OKE_CLUSTER_ID: ${{ secrets.OKE_CLUSTER_ID }}
+      OCI_TENANCY_NAMESPACE: ${{ secrets.OCI_TENANCY_NAMESPACE }}
+      OCI_USERNAME: ${{ secrets.OCI_USERNAME }}
+      OCI_AUTH_TOKEN: ${{ secrets.OCI_AUTH_TOKEN }}
+      MYSQL_HOST: ${{ secrets.MYSQL_HOST }}
+      MYSQL_USER: ${{ secrets.MYSQL_USER }}
+      MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
+      MYSQL_ROOT_PASSWORD: ${{ secrets.MYSQL_ROOT_PASSWORD }}
 
   # ============================================
   # 8. Résumé final

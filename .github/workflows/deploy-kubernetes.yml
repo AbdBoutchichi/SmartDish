@@ -24,6 +24,20 @@ on:
         required: true
       OKE_CLUSTER_ID:
         required: false
+      OCI_TENANCY_NAMESPACE:
+        required: true
+      OCI_USERNAME:
+        required: true
+      OCI_AUTH_TOKEN:
+        required: true
+      MYSQL_HOST:
+        required: false
+      MYSQL_USER:
+        required: false
+      MYSQL_PASSWORD:
+        required: false
+      MYSQL_ROOT_PASSWORD:
+        required: false
   workflow_dispatch:
     inputs:
       environment:
@@ -60,14 +74,13 @@ jobs:
           
           mkdir -p ~/.kube
           
-          # Décoder et sauvegarder le kubeconfig depuis le secret base64
+          
           echo "${{ secrets.OCI_KUBECONFIG }}" | base64 -d > ~/.kube/config
           
           chmod 600 ~/.kube/config
           
           echo "✅ Kubeconfig configuré depuis OCI_KUBECONFIG"
           
-          # Afficher les informations du cluster (sans données sensibles)
           echo "Informations du cluster:"
           CLUSTER_SERVER=$(grep 'server:' ~/.kube/config | head -1 | awk '{print $2}' | sed 's/https:\/\///')
           echo "  Server: $CLUSTER_SERVER"
