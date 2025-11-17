@@ -155,7 +155,7 @@ jobs:
       OCI_CLI_FINGERPRINT: ${{ secrets.OCI_CLI_FINGERPRINT }}
       OCI_CLI_TENANCY: ${{ secrets.OCI_CLI_TENANCY }}
       OCI_CLI_REGION: ${{ secrets.OCI_CLI_REGION }}
-      OCI_CLI_KEY_CONTENT: ${{ secrets.OCI_CLI_KEY_CONTENT }}
+      OCI_API_KEY: ${{ secrets.OCI_API_KEY }}
       MYSQL_HOST: ${{ secrets.MYSQL_HOST }}
       MYSQL_USER: ${{ secrets.MYSQL_USER }}
       MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}

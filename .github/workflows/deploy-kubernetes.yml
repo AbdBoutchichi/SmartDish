@@ -38,7 +38,7 @@ on:
         required: false
       OCI_CLI_REGION:
         required: false
-      OCI_CLI_KEY_CONTENT:
+      OCI_API_KEY:
         required: false
       MYSQL_HOST:
         required: true
@@ -67,7 +67,6 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
     env:
       NAMESPACE: ${{ inputs.namespace }}
       MICROSERVICE_NAME: ${{ inputs.microservice-name }}
@@ -94,19 +93,26 @@ jobs:
           # Créer le répertoire de configuration
           mkdir -p ~/.oci
           
-          # Écrire la clé privée (préserver les retours à la ligne)
-          echo "${{ secrets.OCI_CLI_KEY_CONTENT }}" > ~/.oci/oci_api_key.pem
+          # Écrire la clé privée avec gestion correcte des retours à la ligne
+          echo "$OCI_API_KEY" > ~/.oci/oci_api_key.pem
+          
+          # Vérifier le contenu (sans l'afficher)
+          echo "Taille de la clé: $(wc -c < ~/.oci/oci_api_key.pem) bytes"
+          echo "Nombre de lignes: $(wc -l < ~/.oci/oci_api_key.pem)"
           
           # Vérification du format de la clé
-          if ! grep -q "BEGIN RSA PRIVATE KEY" ~/.oci/oci_api_key.pem; then
+          if ! grep -q "BEGIN RSA PRIVATE KEY" ~/.oci/oci_api_key.pem && ! grep -q "BEGIN PRIVATE KEY" ~/.oci/oci_api_key.pem; then
             echo "❌ Erreur: Format de clé OCI invalide"
-            echo "La clé doit commencer par '-----BEGIN RSA PRIVATE KEY-----'"
+            echo "La clé doit commencer par '-----BEGIN RSA PRIVATE KEY-----' ou '-----BEGIN PRIVATE KEY-----'"
+            echo ""
+            echo "Contenu trouvé (premiers caractères):"
+            head -c 100 ~/.oci/oci_api_key.pem
             exit 1
           fi
           
-          if ! grep -q "END RSA PRIVATE KEY" ~/.oci/oci_api_key.pem; then
+          if ! grep -q "END RSA PRIVATE KEY" ~/.oci/oci_api_key.pem && ! grep -q "END PRIVATE KEY" ~/.oci/oci_api_key.pem; then
             echo "❌ Erreur: Format de clé OCI invalide"
-            echo "La clé doit se terminer par '-----END RSA PRIVATE KEY-----'"
+            echo "La clé doit se terminer par '-----END RSA PRIVATE KEY-----' ou '-----END PRIVATE KEY-----'"
             exit 1
           fi
           
@@ -133,9 +139,12 @@ jobs:
           echo "- User: ${OCI_CLI_USER:0:20}..."
           echo "- Tenancy: ${OCI_CLI_TENANCY:0:20}..."
           echo "- Region: ${{ env.OCI_CLI_REGION }}"
+          echo "- Fingerprint: ${OCI_CLI_FINGERPRINT:0:14}..."
         env:
+          OCI_API_KEY: ${{ secrets.OCI_API_KEY }}
           OCI_CLI_USER: ${{ secrets.OCI_CLI_USER }}
           OCI_CLI_TENANCY: ${{ secrets.OCI_CLI_TENANCY }}
+          OCI_CLI_FINGERPRINT: ${{ secrets.OCI_CLI_FINGERPRINT }}
 
       - name: Test OCI CLI Connection
         run: |
