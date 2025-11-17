@@ -175,40 +175,6 @@ jobs:
           
           echo "✅ ConfigMap configurée"
 
-      - name: Verify Docker Image Exists
-        run: |
-          echo "Vérification de l'existence de l'image Docker..."
-          
-          # Sanitiser le nom du microservice
-          MICROSERVICE_NAME_SANITIZED=$(echo "${{ env.MICROSERVICE_NAME }}" | tr '.' '-' | tr '[:upper:]' '[:lower:]')
-          
-          IMAGE_URL="cdg.ocir.io/${{ secrets.OCI_TENANCY_NAMESPACE }}/smartdish/$MICROSERVICE_NAME_SANITIZED:${{ env.IMAGE_TAG }}"
-          
-          echo "Image à vérifier: $IMAGE_URL"
-          
-          # Vérifier que l'image existe dans OCIR
-          if docker manifest inspect "$IMAGE_URL" > /dev/null 2>&1; then
-            echo "✅ Image trouvée dans OCIR"
-          else
-            echo ""
-            echo "❌ ERREUR: L'image n'existe pas dans OCIR!"
-            echo ""
-            echo "Image recherchée: $IMAGE_URL"
-            echo ""
-            echo "Causes possibles:"
-            echo "1. Le job 'build-docker-image' a échoué"
-            echo "2. Le repository 'smartdish/$MICROSERVICE_NAME_SANITIZED' n'existe pas dans OCIR"
-            echo "3. Le tag '${{ env.IMAGE_TAG }}' n'a pas été créé"
-            echo ""
-            echo "Actions à faire:"
-            echo "1. Vérifiez que le job 'build-docker-image' a réussi"
-            echo "2. Créez le repository dans OCIR: Console OCI > Container Registry > Create Repository"
-            echo "   - Name: smartdish/$MICROSERVICE_NAME_SANITIZED"
-            echo "   - Access: Private"
-            echo "3. Relancez le workflow"
-            echo ""
-            exit 1
-          fi
 
       - name: Apply Kubernetes Manifests
         run: |
