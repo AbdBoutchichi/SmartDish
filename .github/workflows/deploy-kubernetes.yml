@@ -77,167 +77,23 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install OCI CLI
-        run: |
-          echo "Installation d'OCI CLI..."
-          curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh -o install.sh
-          chmod +x install.sh
-          ./install.sh --accept-all-defaults
-          echo "$HOME/bin" >> $GITHUB_PATH
-          echo "✅ OCI CLI installé"
-
-      - name: Configure OCI CLI
-        run: |
-          echo "Configuration d'OCI CLI..."
-          
-          # Créer le répertoire de configuration
-          mkdir -p ~/.oci
-          
-          # Écrire la clé privée avec gestion correcte des retours à la ligne
-          echo "$OCI_API_KEY" > ~/.oci/oci_api_key_raw.pem
-          
-          # Vérifier le contenu initial
-          echo "Taille de la clé: $(wc -c < ~/.oci/oci_api_key_raw.pem) bytes"
-          echo "Nombre de lignes: $(wc -l < ~/.oci/oci_api_key_raw.pem)"
-          
-          # Vérifier si la clé a les headers corrects
-          if grep -q "BEGIN.*PRIVATE KEY" ~/.oci/oci_api_key_raw.pem; then
-            echo "✅ Format PEM avec headers détecté"
-            cp ~/.oci/oci_api_key_raw.pem ~/.oci/oci_api_key.pem
-          else
-            echo "⚠️  Clé sans headers détectée, reconstruction du format PEM..."
-            
-            # Déterminer le type de clé en fonction de la longueur ou du contenu
-            # Par défaut, on utilise RSA PRIVATE KEY
-            echo "-----BEGIN RSA PRIVATE KEY-----" > ~/.oci/oci_api_key.pem
-            
-            # Nettoyer et formater la clé (enlever les espaces, sauts de ligne superflus)
-            cat ~/.oci/oci_api_key_raw.pem | tr -d '\n\r' | fold -w 64 >> ~/.oci/oci_api_key.pem
-            
-            echo "-----END RSA PRIVATE KEY-----" >> ~/.oci/oci_api_key.pem
-            
-            echo "✅ Format PEM reconstruit"
-          fi
-          
-          # Vérification finale du format
-          if ! grep -q "BEGIN.*PRIVATE KEY" ~/.oci/oci_api_key.pem; then
-            echo "❌ Erreur: Format de clé OCI invalide après reconstruction"
-            echo ""
-            echo "Premiers caractères du secret OCI_API_KEY:"
-            head -c 100 ~/.oci/oci_api_key_raw.pem
-            echo ""
-            echo ""
-            echo "🔧 SOLUTION:"
-            echo "Le secret OCI_API_KEY doit contenir votre clé privée PEM COMPLÈTE, incluant:"
-            echo "  -----BEGIN RSA PRIVATE KEY-----"
-            echo "  [contenu encodé en base64 sur plusieurs lignes]"
-            echo "  -----END RSA PRIVATE KEY-----"
-            echo ""
-            echo "Pour obtenir la clé:"
-            echo "1. OCI Console → User Settings → API Keys"
-            echo "2. Téléchargez la clé privée (.pem)"
-            echo "3. Copiez TOUT le contenu du fichier dans le secret GitHub"
-            exit 1
-          fi
-          
-          if ! grep -q "END.*PRIVATE KEY" ~/.oci/oci_api_key.pem; then
-            echo "❌ Erreur: Format de clé OCI invalide - footer manquant"
-            exit 1
-          fi
-          
-          # Permissions strictes (obligatoire pour OCI)
-          chmod 600 ~/.oci/oci_api_key.pem
-          
-          # Afficher les premières et dernières lignes pour vérification
-          echo "Format de la clé (première ligne):"
-          head -n 1 ~/.oci/oci_api_key.pem
-          echo "Format de la clé (dernière ligne):"
-          tail -n 1 ~/.oci/oci_api_key.pem
-          
-          # Créer le fichier de configuration OCI
-          cat > ~/.oci/config << EOF
-          [DEFAULT]
-          user=${{ secrets.OCI_CLI_USER }}
-          fingerprint=${{ secrets.OCI_CLI_FINGERPRINT }}
-          tenancy=${{ secrets.OCI_CLI_TENANCY }}
-          region=${{ env.OCI_CLI_REGION }}
-          key_file=~/.oci/oci_api_key.pem
-          EOF
-          
-          # Permissions pour le fichier de config
-          chmod 600 ~/.oci/config
-          
-          echo "✅ Configuration OCI créée"
-          
-          # Afficher la config (sans données sensibles)
-          echo "Configuration OCI (masquée) :"
-          echo "- User: ${OCI_CLI_USER:0:20}..."
-          echo "- Tenancy: ${OCI_CLI_TENANCY:0:20}..."
-          echo "- Region: ${{ env.OCI_CLI_REGION }}"
-          echo "- Fingerprint: ${OCI_CLI_FINGERPRINT:0:14}..."
-        env:
-          OCI_API_KEY: ${{ secrets.OCI_API_KEY }}
-          OCI_CLI_USER: ${{ secrets.OCI_CLI_USER }}
-          OCI_CLI_TENANCY: ${{ secrets.OCI_CLI_TENANCY }}
-          OCI_CLI_FINGERPRINT: ${{ secrets.OCI_CLI_FINGERPRINT }}
-
-      - name: Test OCI CLI Connection
-        run: |
-          echo "Test de la connexion OCI..."
-          
-          # Désactiver les prompts interactifs
-          export OCI_CLI_SUPPRESS_FILE_PERMISSIONS_WARNING=True
-          
-          # Test avec timeout et sans prompt
-          if timeout 30s oci iam region list --query "data[0].name" --raw-output 2>&1 | grep -q "passphrase"; then
-            echo "❌ ERREUR: Votre clé privée OCI est protégée par un mot de passe (passphrase)"
-            echo ""
-            echo "🔧 SOLUTION:"
-            echo "Vous devez générer une nouvelle clé API SANS passphrase dans OCI Console:"
-            echo ""
-            echo "1. OCI Console → User Settings → API Keys"
-            echo "2. Supprimez l'ancienne clé (celle avec passphrase)"
-            echo "3. Cliquez sur 'Add API Key'"
-            echo "4. Sélectionnez 'Generate API Key Pair'"
-            echo "5. ⚠️  NE COCHEZ PAS 'Encrypt with passphrase'"
-            echo "6. Téléchargez la clé privée (.pem)"
-            echo "7. Notez le nouveau Fingerprint"
-            echo "8. Mettez à jour les secrets GitHub:"
-            echo "   - OCI_API_KEY: Contenu du nouveau fichier .pem"
-            echo "   - OCI_CLI_FINGERPRINT: Nouveau fingerprint"
-            echo ""
-            echo "⚠️  Pour l'instant, on continue le déploiement en utilisant le kubeconfig..."
-            exit 0
-          fi
-          
-          if timeout 30s oci iam region list --query "data[0].name" --raw-output 2>&1 | grep -E "error|Error|ERROR" > /dev/null; then
-            echo "⚠️  Avertissement: Test OCI CLI échoué, mais on continue avec kubeconfig"
-            echo "Vérifiez vos secrets OCI si vous souhaitez utiliser OCI CLI:"
-            echo "1. OCI_CLI_USER : OCID de l'utilisateur"
-            echo "2. OCI_CLI_FINGERPRINT : Fingerprint de la clé API"
-            echo "3. OCI_CLI_TENANCY : OCID du tenancy"
-            echo "4. OCI_CLI_REGION : Région OCI (ex: eu-paris-1)"
-            echo "5. OCI_API_KEY : Clé privée SANS passphrase"
-            exit 0
-          fi
-          
-          echo "✅ Connexion OCI établie avec succès"
-
       - name: Setup Kubernetes Config
         run: |
           echo "Configuration de kubectl pour OKE..."
           
           mkdir -p ~/.kube
           
-          # Utiliser directement le kubeconfig en base64 (ne nécessite pas OCI CLI)
+          # Décoder et sauvegarder le kubeconfig depuis le secret base64
           echo "${{ secrets.OCI_KUBECONFIG }}" | base64 -d > ~/.kube/config
           
           chmod 600 ~/.kube/config
           
-          echo "✅ Kubeconfig configuré depuis le secret OCI_KUBECONFIG"
+          echo "✅ Kubeconfig configuré depuis OCI_KUBECONFIG"
           
           # Afficher les informations du cluster (sans données sensibles)
-          echo "Cluster endpoint: $(grep 'server:' ~/.kube/config | head -1 | awk '{print $2}')"
+          echo "Informations du cluster:"
+          CLUSTER_SERVER=$(grep 'server:' ~/.kube/config | head -1 | awk '{print $2}' | sed 's/https:\/\///')
+          echo "  Server: $CLUSTER_SERVER"
 
       - name: Verify Kubernetes Connection
         run: |
