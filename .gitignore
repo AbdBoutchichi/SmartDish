@@ -54,6 +54,10 @@ charts/
 *secret*.yaml.dec
 *secrets*.yaml.dec
 
+# Fichiers Kubernetes générés
+*-generated.yaml
+deployment-generated.yaml
+
 # ========================================
 # OCI CONFIGURATION
 # ========================================
