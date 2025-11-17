@@ -87,18 +87,12 @@ jobs:
           echo "Registry: ${{ env.OCI_REGISTRY }}"
           
           # Le username doit avoir le format: <tenancy-namespace>/<username>
-          # Si l'username ne contient pas le tenancy namespace, on l'ajoute
-          if [[ "$OCI_USERNAME" != *"/"* ]]; then
-            FULL_USERNAME="${OCI_TENANCY_NAMESPACE}/${OCI_USERNAME}"
-            echo "⚠️  Username modifié pour inclure le tenancy"
-          else
-            FULL_USERNAME="$OCI_USERNAME"
-            echo "Username au format complet détecté"
-          fi
+          FULL_USERNAME="${OCI_TENANCY_NAMESPACE}/${OCI_USERNAME}"
           
           echo "Tentative de connexion à OCIR..."
           echo "Registry: ${{ env.OCI_REGISTRY }}"
           echo "Tenancy Namespace: $OCI_TENANCY_NAMESPACE"
+          echo "Username: ${FULL_USERNAME%%/*}/***"
           
           # Connexion avec gestion d'erreur
           if echo "$OCI_AUTH_TOKEN" | docker login ${{ env.OCI_REGISTRY }} -u "$FULL_USERNAME" --password-stdin 2>&1; then
@@ -108,14 +102,22 @@ jobs:
             echo "❌ ÉCHEC DE CONNEXION À OCIR"
             echo ""
             echo "Vérifications à faire :"
-            echo "1. Le repository 'smartdish/${{ inputs.microservice-name }}' existe-t-il dans OCIR ?"
+            echo "1. Vérifiez que OCI_USERNAME contient UNIQUEMENT votre nom d'utilisateur (pas le namespace)"
+            echo "   Valeur actuelle de OCI_USERNAME: $OCI_USERNAME"
+            echo "   Format attendu: 'abdelmoughitboutchi4@gmail.com'"
+            echo ""
+            echo "2. Vérifiez OCI_TENANCY_NAMESPACE"
+            echo "   Valeur actuelle: $OCI_TENANCY_NAMESPACE"
+            echo "   Format attendu: 'axfuowvuxal7' (avec 'f')"
+            echo ""
+            echo "3. Le repository 'smartdish/${{ inputs.microservice-name }}' existe-t-il dans OCIR ?"
             echo "   → Console OCI > Developer Services > Container Registry"
             echo ""
-            echo "2. Votre utilisateur a-t-il les permissions IAM pour OCIR ?"
+            echo "4. Votre utilisateur a-t-il les permissions IAM pour OCIR ?"
             echo "   → Console OCI > Identity > Policies"
             echo "   → Policy requise : Allow group <votre-groupe> to manage repos in tenancy"
             echo ""
-            echo "3. L'Auth Token est-il valide ?"
+            echo "5. L'Auth Token est-il valide ?"
             echo "   → Console OCI > User Settings > Auth Tokens"
             echo ""
             exit 1

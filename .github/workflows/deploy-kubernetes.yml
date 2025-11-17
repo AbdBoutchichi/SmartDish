@@ -126,20 +126,12 @@ jobs:
           OCI_AUTH_TOKEN="${{ secrets.OCI_AUTH_TOKEN }}"
           
           # Le username doit avoir le format: <tenancy-namespace>/<username>
-          # Si l'username ne contient pas le tenancy namespace, on l'ajoute
-          if [[ "$OCI_USERNAME" != *"/"* ]]; then
-            DOCKER_USERNAME="${OCI_TENANCY_NAMESPACE}/${OCI_USERNAME}"
-            echo "⚠️  Username formaté: $OCI_TENANCY_NAMESPACE/<username>"
-          else
-            DOCKER_USERNAME="$OCI_USERNAME"
-            echo "✅ Username au format complet détecté"
-          fi
-          
+          DOCKER_USERNAME="${OCI_TENANCY_NAMESPACE}/${OCI_USERNAME}"
           DOCKER_PASSWORD="$OCI_AUTH_TOKEN"
           
           echo "Registry: $DOCKER_SERVER"
           echo "Tenancy Namespace: $OCI_TENANCY_NAMESPACE"
-          echo "Username (partiel): ${DOCKER_USERNAME%%/*}/***"
+          echo "Username: ${DOCKER_USERNAME%%/*}/***"
           
           # Vérifier que les variables sont définies
           if [ -z "$OCI_TENANCY_NAMESPACE" ] || [ -z "$OCI_USERNAME" ] || [ -z "$OCI_AUTH_TOKEN" ]; then
@@ -159,14 +151,18 @@ jobs:
             echo "❌ ÉCHEC DE CONNEXION À OCIR"
             echo ""
             echo "Vérifications nécessaires:"
-            echo "1. OCI_USERNAME doit être votre nom d'utilisateur OCI (PAS l'email)"
-            echo "   Format attendu: 'votre-username' ou 'namespace/votre-username'"
-            echo "   Trouvez-le dans: Console OCI > Identity > Users > Votre utilisateur"
+            echo "1. OCI_USERNAME doit être UNIQUEMENT votre nom d'utilisateur (sans le namespace)"
+            echo "   Valeur actuelle de OCI_USERNAME: $OCI_USERNAME"
+            echo "   Format attendu: 'abdelmoughitboutchi4@gmail.com'"
             echo ""
-            echo "2. OCI_AUTH_TOKEN doit être valide et actif"
+            echo "2. OCI_TENANCY_NAMESPACE doit être correct"
+            echo "   Valeur actuelle: $OCI_TENANCY_NAMESPACE"
+            echo "   Format attendu: 'axfuowvuxal7' (avec 'f')"
+            echo ""
+            echo "3. OCI_AUTH_TOKEN doit être valide et actif"
             echo "   Vérifiez: Console OCI > User Settings > Auth Tokens"
             echo ""
-            echo "3. Permissions IAM nécessaires:"
+            echo "4. Permissions IAM nécessaires:"
             echo "   Allow group <votre-groupe> to manage repos in tenancy"
             echo ""
             exit 1
