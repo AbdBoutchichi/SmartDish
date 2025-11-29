@@ -25,7 +25,7 @@ jobs:
 
       - name: Install Newman dependencies
         working-directory: tests/newman
-        run: npm ci
+        run: npm install --legacy-peer-deps
 
       - name: Run Newman integration tests
         working-directory: tests/newman

@@ -60,3 +60,10 @@ jobs:
     needs: deploy-kubernetes
     uses: ./.github/workflows/integration-tests.yml
 
+  # Job 8: Log All Components URLs
+  log-components:
+    name: "8️⃣ Log Components URLs"
+    needs: deploy-kubernetes
+    if: always()
+    uses: ./.github/workflows/log-components.yml
+

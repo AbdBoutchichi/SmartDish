@@ -1,0 +1,149 @@
+name: Log Components URLs
+
+on:
+  workflow_call:
+
+jobs:
+  log-urls:
+    name: 📝 Log All Components URLs
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Get Minikube IP
+        id: minikube
+        run: |
+          # Assuming Minikube is still running from previous jobs
+          MINIKUBE_IP=$(minikube ip 2>/dev/null || echo "NOT_AVAILABLE")
+          echo "minikube_ip=$MINIKUBE_IP" >> $GITHUB_OUTPUT
+          echo "Minikube IP: $MINIKUBE_IP"
+
+      - name: Get Services Info
+        id: services
+        run: |
+          # Get NodePorts for all services
+          API_PORT=$(kubectl get svc univ-soa -n soa-integration -o jsonpath='{.spec.ports[0].nodePort}' 2>/dev/null || echo "NOT_DEPLOYED")
+          PHPMYADMIN_PORT=$(kubectl get svc phpmyadmin -n soa-integration -o jsonpath='{.spec.ports[0].nodePort}' 2>/dev/null || echo "NOT_DEPLOYED")
+          MYSQL_PORT=$(kubectl get svc mysql -n soa-integration -o jsonpath='{.spec.ports[0].port}' 2>/dev/null || echo "NOT_DEPLOYED")
+          
+          echo "api_port=$API_PORT" >> $GITHUB_OUTPUT
+          echo "phpmyadmin_port=$PHPMYADMIN_PORT" >> $GITHUB_OUTPUT
+          echo "mysql_port=$MYSQL_PORT" >> $GITHUB_OUTPUT
+
+      - name: Display All URLs
+        run: |
+          MINIKUBE_IP="${{ steps.minikube.outputs.minikube_ip }}"
+          API_PORT="${{ steps.services.outputs.api_port }}"
+          PHPMYADMIN_PORT="${{ steps.services.outputs.phpmyadmin_port }}"
+          MYSQL_PORT="${{ steps.services.outputs.mysql_port }}"
+          
+          echo "╔════════════════════════════════════════════════════════════════╗"
+          echo "║                  🚀 COMPOSANTS DÉPLOYÉS                        ║"
+          echo "╠════════════════════════════════════════════════════════════════╣"
+          echo "║"
+          echo "║ 📦 Minikube IP: $MINIKUBE_IP"
+          echo "║"
+          echo "║ ─────────────────────────────────────────────────────────────"
+          echo "║"
+          echo "║ 🌐 API Spring Boot (univ-soa)"
+          if [ "$API_PORT" != "NOT_DEPLOYED" ]; then
+            echo "║    URL: http://$MINIKUBE_IP:$API_PORT"
+            echo "║    Health: http://$MINIKUBE_IP:$API_PORT/actuator/health"
+            echo "║    DB Test: http://$MINIKUBE_IP:$API_PORT/api/database/test"
+            echo "║    Swagger: http://$MINIKUBE_IP:$API_PORT/swagger-ui.html"
+          else
+            echo "║    ❌ NOT DEPLOYED"
+          fi
+          echo "║"
+          echo "║ ─────────────────────────────────────────────────────────────"
+          echo "║"
+          echo "║ 🗄️  phpMyAdmin (MySQL Admin)"
+          if [ "$PHPMYADMIN_PORT" != "NOT_DEPLOYED" ]; then
+            echo "║    URL: http://$MINIKUBE_IP:$PHPMYADMIN_PORT"
+            echo "║    User: root"
+            echo "║    Pass: password"
+          else
+            echo "║    ❌ NOT DEPLOYED"
+          fi
+          echo "║"
+          echo "║ ─────────────────────────────────────────────────────────────"
+          echo "║"
+          echo "║ 🐬 MySQL Database"
+          if [ "$MYSQL_PORT" != "NOT_DEPLOYED" ]; then
+            echo "║    Host: mysql (internal)"
+            echo "║    Port: $MYSQL_PORT (internal)"
+            echo "║    Database: testdb"
+            echo "║    User: root"
+            echo "║    Pass: password"
+          else
+            echo "║    ❌ NOT DEPLOYED"
+          fi
+          echo "║"
+          echo "║ ─────────────────────────────────────────────────────────────"
+          echo "║"
+          echo "║ 🔧 ArgoCD"
+          echo "║    ⚠️  Not configured in this deployment"
+          echo "║    (Can be added later if needed)"
+          echo "║"
+          echo "╚════════════════════════════════════════════════════════════════╝"
+
+      - name: Create URLs summary file
+        run: |
+          MINIKUBE_IP="${{ steps.minikube.outputs.minikube_ip }}"
+          API_PORT="${{ steps.services.outputs.api_port }}"
+          PHPMYADMIN_PORT="${{ steps.services.outputs.phpmyadmin_port }}"
+          
+          cat > deployment-urls.md << EOF
+          # 🚀 Deployment URLs
+          
+          ## Minikube Cluster
+          - **IP**: \`$MINIKUBE_IP\`
+          - **Namespace**: \`soa-integration\`
+          
+          ## Components
+          
+          ### 🌐 API Spring Boot
+          - **URL**: http://$MINIKUBE_IP:$API_PORT
+          - **Health Check**: http://$MINIKUBE_IP:$API_PORT/actuator/health
+          - **Database Test**: http://$MINIKUBE_IP:$API_PORT/api/database/test
+          - **Swagger UI**: http://$MINIKUBE_IP:$API_PORT/swagger-ui.html
+          
+          ### 🗄️ phpMyAdmin
+          - **URL**: http://$MINIKUBE_IP:$PHPMYADMIN_PORT
+          - **Username**: \`root\`
+          - **Password**: \`password\`
+          
+          ### 🐬 MySQL
+          - **Host**: \`mysql\` (internal to Kubernetes)
+          - **Port**: \`3306\`
+          - **Database**: \`testdb\`
+          - **Username**: \`root\`
+          - **Password**: \`password\`
+          
+          ## Quick Commands
+          
+          \`\`\`bash
+          # Port-forward API locally
+          kubectl port-forward svc/univ-soa 8080:8080 -n soa-integration
+          
+          # Port-forward phpMyAdmin locally
+          kubectl port-forward svc/phpmyadmin 8081:80 -n soa-integration
+          
+          # Check pods
+          kubectl get pods -n soa-integration
+          
+          # Check logs
+          kubectl logs -l app=univ-soa -n soa-integration --tail=100
+          EOF
+          
+          cat deployment-urls.md
+
+      - name: Upload URLs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-urls
+          path: deployment-urls.md
+          retention-days: 7
+
+      - name: Add to Job Summary
+        run: |
+          cat deployment-urls.md >> $GITHUB_STEP_SUMMARY
+
