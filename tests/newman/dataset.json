@@ -1,5 +1,4 @@
 [
-  { "id": 1001, "name": "test-1", "value": "v1" },
-  { "id": 1002, "name": "test-2", "value": "v2" }
+  { "testRun": "run-1" }
 ]
 
