@@ -30,8 +30,9 @@ La pipeline CI/CD a été entièrement restructurée en **architecture modulaire
 
 k8s/minikube/
 ├── configmap.yaml                 🔧 Variables d'environnement
-├── deployment.yaml                ☸️ Deployment Kubernetes
-└── service.yaml                   🌐 Service NodePort
+├── deployment.yaml                ☸️ Deployment Kubernetes (app)
+├── service.yaml                   🌐 Service NodePort (app)
+└── mysql.yaml                     🗄️ MySQL Deployment + Service
 
 tests/newman/
 ├── collection.json                📦 Collection Postman
