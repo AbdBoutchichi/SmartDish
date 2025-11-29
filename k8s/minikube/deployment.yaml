@@ -25,15 +25,11 @@ spec:
         - configMapRef:
             name: univ-soa-config
         env:
-        # Override datasource URL for embedded H2 (no external MySQL needed)
-        - name: spring.datasource.url
-          value: "jdbc:h2:mem:testdb"
-        - name: spring.datasource.driver-class-name
-          value: "org.h2.Driver"
-        - name: spring.jpa.properties.hibernate.dialect
-          value: "org.hibernate.dialect.H2Dialect"
+        # Wait for MySQL to be ready before connecting
+        - name: SPRING_DATASOURCE_URL
+          value: "jdbc:mysql://mysql:3306/testdb?allowPublicKeyRetrieval=true&useSSL=false"
         # Disable MongoDB for integration tests
-        - name: spring.autoconfigure.exclude
+        - name: SPRING_AUTOCONFIGURE_EXCLUDE
           value: "org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration,org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration"
         livenessProbe:
           httpGet:
