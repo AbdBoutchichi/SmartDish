@@ -137,11 +137,11 @@ public class UtilisateurController {
         }
 
         // Validation : email unique (sauf pour l'utilisateur actuel)
-        utilisateurService.findByEmail(dto.getEmail()).ifPresent(existingUser -> {
-            if (!existingUser.getId().equals(id)) {
-                throw new IllegalStateException("Un autre utilisateur utilise déjà cet email");
-            }
-        });
+        java.util.Optional<Utilisateur> existingOpt = utilisateurService.findByEmail(dto.getEmail());
+        if (existingOpt.isPresent() && !existingOpt.get().getId().equals(id)) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(createErrorResponse("Un autre utilisateur utilise déjà cet email"));
+        }
 
         // Validation : si mot de passe fourni, vérifier la longueur
         if (dto.getMotDePasse() != null && !dto.getMotDePasse().trim().isEmpty()) {
@@ -166,9 +166,6 @@ public class UtilisateurController {
             Utilisateur updated = utilisateurService.updateFromDTO(id, dto);
             UtilisateurDTO responseDto = utilisateurMapper.toDTO(updated);
             return ResponseEntity.ok(responseDto);
-        } catch (IllegalStateException e) {
-            return ResponseEntity.status(HttpStatus.CONFLICT)
-                    .body(createErrorResponse(e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(createErrorResponse("Erreur lors de la mise à jour: " + e.getMessage()));

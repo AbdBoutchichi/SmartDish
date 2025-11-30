@@ -150,7 +150,8 @@ public class AlimentController {
             Aliment updated = alimentService.update(id, aliment);
             AlimentDTO responseDto = alimentMapper.toDTO(updated);
             return ResponseEntity.ok(responseDto);
-        } catch (IllegalStateException e) {
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            // Gérer à la fois IllegalArgumentException et IllegalStateException comme CONFLICT (409)
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(createErrorResponse(e.getMessage()));
         } catch (Exception e) {
@@ -158,6 +159,7 @@ public class AlimentController {
                     .body(createErrorResponse("Erreur lors de la mise à jour: " + e.getMessage()));
         }
     }
+
 
     /**
      * DELETE /api/persistance/aliments/{id} - Supprimer un aliment

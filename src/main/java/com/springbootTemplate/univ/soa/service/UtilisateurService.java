@@ -49,6 +49,14 @@ public class UtilisateurService {
             utilisateur.setMotDePasse(passwordEncoder.encode(utilisateur.getMotDePasse()));
         }
 
+        // Ensure defaults if null
+        if (utilisateur.getActif() == null) {
+            utilisateur.setActif(true);
+        }
+        if (utilisateur.getRole() == null) {
+            utilisateur.setRole(Utilisateur.Role.USER);
+        }
+
         return utilisateurRepository.save(utilisateur);
     }
 
@@ -60,8 +68,13 @@ public class UtilisateurService {
         existing.setEmail(utilisateur.getEmail());
         existing.setNom(utilisateur.getNom());
         existing.setPrenom(utilisateur.getPrenom());
-        existing.setActif(utilisateur.getActif());
-        existing.setRole(utilisateur.getRole());
+        // Only update actif/role if provided (avoid setting null into NOT NULL column)
+        if (utilisateur.getActif() != null) {
+            existing.setActif(utilisateur.getActif());
+        }
+        if (utilisateur.getRole() != null) {
+            existing.setRole(utilisateur.getRole());
+        }
 
         // Mettre à jour le mot de passe seulement s'il est fourni
         if (utilisateur.getMotDePasse() != null && !utilisateur.getMotDePasse().isEmpty()) {
@@ -85,15 +98,17 @@ public class UtilisateurService {
         utilisateur.setEmail(dto.getEmail());
         utilisateur.setNom(dto.getNom());
         utilisateur.setPrenom(dto.getPrenom());
-        utilisateur.setActif(dto.getActif());
-        utilisateur.setRole(dto.getRole());
+        if (dto.getActif() != null) {
+            utilisateur.setActif(dto.getActif());
+        }
+        if (dto.getRole() != null) {
+            utilisateur.setRole(dto.getRole());
+        }
 
-        // Hasher le mot de passe
         if (dto.getMotDePasse() != null && !dto.getMotDePasse().isEmpty()) {
             utilisateur.setMotDePasse(passwordEncoder.encode(dto.getMotDePasse()));
         }
 
-        // Gérer les aliments exclus depuis les IDs
         if (dto.getAlimentsExclusIds() != null && !dto.getAlimentsExclusIds().isEmpty()) {
             Set<Aliment> alimentsExclus = new HashSet<>();
             for (Long alimentId : dto.getAlimentsExclusIds()) {
@@ -104,6 +119,13 @@ public class UtilisateurService {
                 alimentsExclus.add(aliment);
             }
             utilisateur.setAlimentsExclus(alimentsExclus);
+        }
+
+        if (utilisateur.getActif() == null) {
+            utilisateur.setActif(true);
+        }
+        if (utilisateur.getRole() == null) {
+            utilisateur.setRole(Utilisateur.Role.USER);
         }
 
         return utilisateurRepository.save(utilisateur);
@@ -120,8 +142,13 @@ public class UtilisateurService {
         existing.setEmail(dto.getEmail());
         existing.setNom(dto.getNom());
         existing.setPrenom(dto.getPrenom());
-        existing.setActif(dto.getActif());
-        existing.setRole(dto.getRole());
+        // Only update actif/role if provided
+        if (dto.getActif() != null) {
+            existing.setActif(dto.getActif());
+        }
+        if (dto.getRole() != null) {
+            existing.setRole(dto.getRole());
+        }
 
         // Mettre à jour le mot de passe seulement s'il est fourni
         if (dto.getMotDePasse() != null && !dto.getMotDePasse().isEmpty()) {

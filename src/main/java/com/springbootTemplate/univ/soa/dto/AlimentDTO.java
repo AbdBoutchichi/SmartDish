@@ -9,7 +9,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class AlimentDTO {
-
     private Long id;
     private String nom;
     private Aliment.CategorieAliment categorie;
