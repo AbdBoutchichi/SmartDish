@@ -12,7 +12,6 @@ import java.util.Set;
 @NoArgsConstructor
 @AllArgsConstructor
 public class UtilisateurDTO {
-
     private Long id;
     private String email;
     private String motDePasse; // Ne sera pas renvoyé dans les réponses GET

@@ -10,7 +10,6 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class FeedbackDTO {
-
     private Long id;
     private Long utilisateurId;
     private Long recetteId;

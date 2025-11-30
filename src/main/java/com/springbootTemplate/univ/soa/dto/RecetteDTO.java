@@ -12,7 +12,6 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class RecetteDTO {
-
     private Long id;
     private String titre;
     private Integer tempsTotal;
