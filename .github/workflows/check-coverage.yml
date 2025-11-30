@@ -18,21 +18,62 @@ jobs:
           java-version: '21'
           cache: maven
 
-      - name: Download JAR artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: application-jar
-          path: target/
-
-      - name: Run JaCoCo coverage
+      - name: Run tests and generate JaCoCo report (XML + HTML)
         run: |
-          echo "📊 Generating code coverage report..."
-          mvn jacoco:report
+          echo "📊 Running tests and generating JaCoCo report..."
+          mvn -B -V -DskipTests=false -Djacoco.skip=false clean test jacoco:report
 
-      - name: Check coverage thresholds
+      - name: Extract and display JaCoCo instruction coverage percentage
         run: |
-          echo "🔍 Checking coverage thresholds..."
-          mvn jacoco:check || echo "⚠️ Coverage below threshold"
+          set -e
+          THRESHOLD=60.0
+          XML_FILE=target/site/jacoco/jacoco.xml
+          PERCENT=""
+          if [ -f "$XML_FILE" ]; then
+            echo "✅ Found $XML_FILE, extracting INSTRUCTION counter..."
+            # Extract the counter element for INSTRUCTION and read missed/covered
+            INST_LINE=$(grep -o '<counter[^>]*type="INSTRUCTION"[^>]*>' "$XML_FILE" || true)
+            if [ -n "$INST_LINE" ]; then
+              MISSED=$(echo "$INST_LINE" | sed -n 's/.*missed="\([0-9]\+\)".*/\1/p' )
+              COVERED=$(echo "$INST_LINE" | sed -n 's/.*covered="\([0-9]\+\)".*/\1/p' )
+              TOTAL=$((MISSED + COVERED))
+              if [ "$TOTAL" -gt 0 ]; then
+                PERCENT=$(awk -v c="$COVERED" -v t="$TOTAL" 'BEGIN{printf "%.2f", (c/t)*100}')
+              else
+                PERCENT="0.00"
+              fi
+              echo "📈 JaCoCo instruction coverage: ${PERCENT}% (covered ${COVERED} / total ${TOTAL})"
+            else
+              echo "⚠️ INSTRUCTION counter not found in $XML_FILE"
+            fi
+          else
+            echo "⚠️ $XML_FILE not found. Trying HTML fallback (target/site/jacoco/index.html)..."
+            if [ -f target/site/jacoco/index.html ]; then
+              # Try to extract a percentage from the HTML as fallback (best-effort)
+              PERCENT=$(grep -oP 'Instruction.*?</td>\s*<td[^>]*>\K[0-9]+\.[0-9]+' target/site/jacoco/index.html || true)
+              if [ -n "$PERCENT" ]; then
+                echo "📈 Parsed instruction coverage from HTML: ${PERCENT}%"
+              else
+                echo "❌ Could not parse coverage percentage from HTML fallback."
+                PERCENT=""
+              fi
+            fi
+          fi
+
+          if [ -z "$PERCENT" ]; then
+            echo "❌ Coverage percentage could not be determined."
+            exit 1
+          fi
+
+          # Compare with threshold (float compare using awk)
+          BELOW=$(awk -v p="$PERCENT" -v t="$THRESHOLD" 'BEGIN{print (p+0 < t) ? 1 : 0}')
+          if [ "$BELOW" -eq 1 ]; then
+            echo "❌ Coverage ${PERCENT}% is below threshold ${THRESHOLD}%"
+            # Fail the step so CI job fails
+            exit 1
+          else
+            echo "✅ Coverage ${PERCENT}% meets threshold ${THRESHOLD}%"
+          fi
 
       - name: Upload coverage reports
         uses: actions/upload-artifact@v4
@@ -41,10 +82,10 @@ jobs:
           path: target/site/jacoco/
           retention-days: 7
 
-      - name: Display coverage summary
+      - name: Display coverage report location
         run: |
           if [ -f target/site/jacoco/index.html ]; then
-            echo "✅ Coverage report generated"
-            echo "📈 Check artifacts for detailed coverage report"
+            echo "✅ Coverage report generated: target/site/jacoco/index.html"
+          else
+            echo "⚠️ No coverage HTML generated"
           fi
-
