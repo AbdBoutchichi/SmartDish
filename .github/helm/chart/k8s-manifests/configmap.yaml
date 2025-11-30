@@ -9,6 +9,23 @@ data:
   SPRING_PROFILES_ACTIVE: {{ .Values.app.profile | quote }}
   TZ: {{ .Values.app.timezone | quote }}
   SERVER_PORT: {{ .Values.service.port | quote }}
+
+  # MySQL Configuration (from Vault secrets in production)
+  MYSQL_HOST: {{ .Values.mysql.host | default "mysql" | quote }}
+  MYSQL_PORT: {{ .Values.mysql.port | default "3306" | quote }}
+  MYSQL_DATABASE: {{ .Values.mysql.database | default "smartdish_db" | quote }}
+
+  # JPA Configuration
+  JPA_DDL_AUTO: {{ .Values.app.jpa.ddlAuto | default "update" | quote }}
+  JPA_SHOW_SQL: {{ .Values.app.jpa.showSql | default "false" | quote }}
+  JPA_FORMAT_SQL: {{ .Values.app.jpa.formatSql | default "true" | quote }}
+  JPA_USE_SQL_COMMENTS: {{ .Values.app.jpa.useSqlComments | default "false" | quote }}
+
+  # Logging Configuration
+  LOG_LEVEL_JDBC: {{ .Values.app.logging.jdbc | default "INFO" | quote }}
+  LOG_LEVEL_HIBERNATE_SQL: {{ .Values.app.logging.hibernateSql | default "INFO" | quote }}
+  LOG_LEVEL_HIBERNATE_BINDER: {{ .Values.app.logging.hibernateBinder | default "INFO" | quote }}
+
   {{- if .Values.vault.enabled }}
   VAULT_ENABLED: "true"
   VAULT_ROLE: {{ .Values.vault.role | quote }}

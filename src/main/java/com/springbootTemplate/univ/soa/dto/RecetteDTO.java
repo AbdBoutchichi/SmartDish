@@ -1,0 +1,47 @@
+package com.springbootTemplate.univ.soa.dto;
+
+import com.springbootTemplate.univ.soa.model.Recette;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class RecetteDTO {
+    private Long id;
+    private String titre;
+    private Integer tempsTotal;
+    private Integer kcal;
+    private String imageUrl;
+    private Recette.Difficulte difficulte;
+    private LocalDateTime dateCreation;
+    private LocalDateTime dateModification;
+    private List<IngredientDTO> ingredients;
+    private List<EtapeDTO> etapes;
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class IngredientDTO {
+        private Long id;
+        private Long alimentId;
+        private String alimentNom;
+        private Float quantite;
+        private String unite;
+        private Boolean principal;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class EtapeDTO {
+        private Long id;
+        private Integer ordre;
+        private Integer temps;
+        private String texte;
+    }
+}

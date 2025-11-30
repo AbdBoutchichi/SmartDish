@@ -14,9 +14,9 @@ fullnameOverride: ""
 
 service:
   type: ClusterIP
-  port: 8080
-  targetPort: 8080
-  name: microservice
+  port: 8090
+  targetPort: 8090
+  name: ms-persistance
 
 ingress:
   enabled: true
@@ -46,20 +46,20 @@ autoscaling:
   targetMemoryUtilizationPercentage: 80
 
 env:
-  secretName: microservice-secrets
-  configMapName: microservice-config
+  secretName: ms-persistance-secrets
+  configMapName: ms-persistance-config
 
 vault:
   enabled: true
-  role: microservice
-  path: secret/data/integration/microservice
+  role: ms-persistance
+  path: secret/data/integration/ms-persistance
 
 healthCheck:
   enabled: true
   livenessProbe:
     httpGet:
       path: /actuator/health/liveness
-      port: 8080
+      port: 8090
     initialDelaySeconds: 60
     periodSeconds: 10
     timeoutSeconds: 5
@@ -67,7 +67,7 @@ healthCheck:
   readinessProbe:
     httpGet:
       path: /actuator/health/readiness
-      port: 8080
+      port: 8090
     initialDelaySeconds: 30
     periodSeconds: 5
     timeoutSeconds: 3
@@ -77,6 +77,20 @@ app:
   javaOpts: "-Xmx512m -Xms256m"
   profile: "default"
   timezone: "Europe/Paris"
+  jpa:
+    ddlAuto: "update"
+    showSql: "false"
+    formatSql: "true"
+    useSqlComments: "false"
+  logging:
+    jdbc: "INFO"
+    hibernateSql: "INFO"
+    hibernateBinder: "INFO"
+
+mysql:
+  host: "mysql"
+  port: "3306"
+  database: "smartdish_db"
 
 securityContext:
   runAsNonRoot: true

@@ -1,4 +1,4 @@
-# Configuration pour API - Environnement Production
+# Configuration pour ms-persistance - Environnement Production
 replicaCount: 3
 
 image:
@@ -61,7 +61,7 @@ healthCheck:
   livenessProbe:
     httpGet:
       path: /actuator/health/liveness
-      port: 8080
+      port: 8090
     initialDelaySeconds: 90
     periodSeconds: 10
     timeoutSeconds: 5
@@ -69,7 +69,7 @@ healthCheck:
   readinessProbe:
     httpGet:
       path: /actuator/health/readiness
-      port: 8080
+      port: 8090
     initialDelaySeconds: 45
     periodSeconds: 10
     timeoutSeconds: 5
@@ -79,6 +79,20 @@ app:
   javaOpts: "-Xmx768m -Xms512m"
   profile: "production"
   timezone: "Europe/Paris"
+  jpa:
+    ddlAuto: "validate"
+    showSql: "false"
+    formatSql: "true"
+    useSqlComments: "false"
+  logging:
+    jdbc: "WARN"
+    hibernateSql: "WARN"
+    hibernateBinder: "WARN"
+
+mysql:
+  host: "mysql"
+  port: "3306"
+  database: "smartdish_db"
 
 securityContext:
   runAsNonRoot: false

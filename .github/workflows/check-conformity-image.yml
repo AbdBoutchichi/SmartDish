@@ -8,7 +8,7 @@ on:
         type: string
 
 env:
-  IMAGE_NAME: univ-soa
+  IMAGE_NAME: ms-persistance
 
 jobs:
   check-conformity:
@@ -84,4 +84,5 @@ jobs:
         run: |
           echo "✅ Docker image conformity checks completed"
           echo "🏷️ Image: ${{ env.IMAGE_NAME }}:${{ inputs.image-tag }}"
+
 

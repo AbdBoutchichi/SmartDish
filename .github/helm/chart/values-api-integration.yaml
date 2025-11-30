@@ -1,22 +1,22 @@
-# Configuration pour API - Environnement Integration
+# Configuration pour ms-persistance - Environnement Integration
 replicaCount: 2
 
 image:
-  repository: ghcr.io/emiliehascoet/recipeyoulove
+  repository: ghcr.io/sabine22-alt/ms-persistance
   pullPolicy: IfNotPresent
   tag: "latest"
 
 imagePullSecrets:
   - name: ghcr-secret
 
-nameOverride: "api"
-fullnameOverride: "api-integration"
+nameOverride: "ms-persistance"
+fullnameOverride: "ms-persistance-integration"
 
 service:
   type: ClusterIP
-  port: 8080
-  targetPort: 8080
-  name: api
+  port: 8090
+  targetPort: 8090
+  name: ms-persistance
 
 ingress:
   enabled: true
@@ -24,10 +24,10 @@ ingress:
   annotations:
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
-  host: soa-api-integration.recipeyoulove.app
+  host: soa-ms-persistance-integration.smartdish.app
   tls:
     enabled: true
-    secretName: api-integration-tls
+    secretName: ms-persistance-integration-tls
 
 resources:
   limits:
@@ -56,7 +56,7 @@ healthCheck:
   livenessProbe:
     httpGet:
       path: /actuator/health/liveness
-      port: 8080
+      port: 8090
     initialDelaySeconds: 60
     periodSeconds: 10
     timeoutSeconds: 5
@@ -64,20 +64,7 @@ healthCheck:
   readinessProbe:
     httpGet:
       path: /actuator/health/readiness
-      port: 8080
-    initialDelaySeconds: 30
-    periodSeconds: 10
-    timeoutSeconds: 5
-    failureThreshold: 3
-      port: 8080
-    initialDelaySeconds: 60
-    periodSeconds: 10
-    timeoutSeconds: 5
-    failureThreshold: 3
-  readinessProbe:
-    httpGet:
-      path: /actuator/health/readiness
-      port: 8080
+      port: 8090
     initialDelaySeconds: 30
     periodSeconds: 5
     timeoutSeconds: 3
@@ -87,6 +74,20 @@ app:
   javaOpts: "-Xmx384m -Xms128m"
   profile: "integration"
   timezone: "Europe/Paris"
+  jpa:
+    ddlAuto: "update"
+    showSql: "true"
+    formatSql: "true"
+    useSqlComments: "false"
+  logging:
+    jdbc: "DEBUG"
+    hibernateSql: "DEBUG"
+    hibernateBinder: "TRACE"
+
+mysql:
+  host: "mysql"
+  port: "3306"
+  database: "smartdish_db"
 
 securityContext:
   runAsNonRoot: false

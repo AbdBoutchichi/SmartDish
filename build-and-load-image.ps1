@@ -22,7 +22,7 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host "OK - Build Maven termine`n" -ForegroundColor Green
 # Build Docker Image
 Write-Host "2. Build Docker Image..." -ForegroundColor Yellow
-docker build -t univ-soa:latest .
+docker build -t ms-persistance:latest .
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERREUR - Build Docker echoue!" -ForegroundColor Red
     exit 1
@@ -30,7 +30,7 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host "OK - Image Docker creee`n" -ForegroundColor Green
 # Verifier l'image
 Write-Host "3. Verification de l'image..." -ForegroundColor Yellow
-$imageExists = docker images univ-soa:latest --format "{{.Repository}}:{{.Tag}}"
+$imageExists = docker images ms-persistance:latest --format "{{.Repository}}:{{.Tag}}"
 if ($imageExists) {
     Write-Host "OK - Image trouvee: $imageExists`n" -ForegroundColor Green
 } else {
@@ -42,10 +42,10 @@ Write-Host "4. Image disponible pour Kubernetes..." -ForegroundColor Yellow
 Write-Host "OK - Docker Desktop partage automatiquement les images avec Kubernetes`n" -ForegroundColor Green
 # Redemarrer les pods si ArgoCD est installe
 Write-Host "5. Redemarrage des pods (si necessaire)..." -ForegroundColor Yellow
-$pods = kubectl get pods -n soa-local --no-headers 2>$null
+$pods = kubectl get pods -n ms-persistance --no-headers 2>$null
 if ($pods) {
     Write-Host "Suppression des pods existants pour forcer le restart..." -ForegroundColor Yellow
-    kubectl delete pods --all -n soa-local
+    kubectl delete pods --all -n ms-persistance
     Start-Sleep -Seconds 5
     Write-Host "OK - Pods redemarres`n" -ForegroundColor Green
 } else {
@@ -55,7 +55,7 @@ Write-Host "================================================================" -F
 Write-Host "            IMAGE PRETE POUR ARGOCD" -ForegroundColor Green
 Write-Host "================================================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "L'image univ-soa:latest est maintenant disponible." -ForegroundColor Cyan
+Write-Host "L'image ms-persistance:latest est maintenant disponible." -ForegroundColor Cyan
 Write-Host ""
 Write-Host "Prochaines etapes:" -ForegroundColor Yellow
 Write-Host "1. Si ArgoCD n'est pas encore configure:" -ForegroundColor White

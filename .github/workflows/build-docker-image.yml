@@ -15,7 +15,7 @@ on:
         value: ${{ jobs.build-docker.outputs.image-full-name }}
 
 env:
-  IMAGE_NAME: univ-soa
+  IMAGE_NAME: ms-persistance
 
 jobs:
   build-docker:

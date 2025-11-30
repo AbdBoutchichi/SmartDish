@@ -17,8 +17,8 @@ Write-Host "Configuration de l'application...`n" -ForegroundColor Cyan
 $repoUrl = Read-Host "URL du repository Git (ex: https://github.com/user/RecipeYouLove)"
 $branch = Read-Host "Branche a surveiller (defaut: main)"
 if ([string]::IsNullOrWhiteSpace($branch)) { $branch = "main" }
-$appName = Read-Host "Nom de l'application (defaut: recipeyoulove)"
-if ([string]::IsNullOrWhiteSpace($appName)) { $appName = "recipeyoulove" }
+$appName = Read-Host "Nom de l'application (defaut: ms-persistance)"
+if ([string]::IsNullOrWhiteSpace($appName)) { $appName = "ms-persistance" }
 Write-Host ""
 # Creer le namespace de destination
 Write-Host "Creation du namespace de destination..." -ForegroundColor Yellow
@@ -40,7 +40,7 @@ spec:
     path: k8s/minikube
   destination:
     server: https://kubernetes.default.svc
-    namespace: soa-local
+    namespace: ms-persistance
   syncPolicy:
     automated:
       prune: true

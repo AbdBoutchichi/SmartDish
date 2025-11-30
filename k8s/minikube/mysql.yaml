@@ -35,7 +35,7 @@ spec:
         - name: MYSQL_ROOT_PASSWORD
           value: "password"
         - name: MYSQL_DATABASE
-          value: "testdb"
+          value: "persistancedb"
         - name: MYSQL_USER
           value: "sa"
         - name: MYSQL_PASSWORD
