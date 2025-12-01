@@ -7,8 +7,6 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -115,43 +113,6 @@ public class UtilisateurController {
         Map<String, String> response = new HashMap<>();
         response.put("message", "Utilisateur supprimé avec succès");
 
-        return ResponseEntity.ok(response);
-    }
-
-    @PatchMapping("/{id}/activer")
-    @PreAuthorize("hasRole('ADMIN')")
-    @SecurityRequirement(name = "bearerAuth")
-    @Operation(summary = "Activer un utilisateur (Admin seulement)")
-    public ResponseEntity<Map<String, String>> activerUtilisateur(@PathVariable Long id) {
-        log.info("PATCH /api/utilisateurs/{}/activer", id);
-        utilisateurService.activerUtilisateur(id);
-
-        Map<String, String> response = new HashMap<>();
-        response.put("message", "Utilisateur activé avec succès");
-
-        return ResponseEntity.ok(response);
-    }
-
-    @PatchMapping("/{id}/desactiver")
-    @PreAuthorize("hasRole('ADMIN')")
-    @SecurityRequirement(name = "bearerAuth")
-    @Operation(summary = "Désactiver un utilisateur (Admin seulement)")
-    public ResponseEntity<Map<String, String>> desactiverUtilisateur(@PathVariable Long id) {
-        log.info("PATCH /api/utilisateurs/{}/desactiver", id);
-        utilisateurService.desactiverUtilisateur(id);
-
-        Map<String, String> response = new HashMap<>();
-        response.put("message", "Utilisateur désactivé avec succès");
-
-        return ResponseEntity.ok(response);
-    }
-
-    @GetMapping("/health")
-    @Operation(summary = "Vérifier l'état du service", description = "Health check endpoint")
-    public ResponseEntity<Map<String, String>> healthCheck() {
-        Map<String, String> response = new HashMap<>();
-        response.put("status", "UP");
-        response.put("service", "ms-utilisateur");
         return ResponseEntity.ok(response);
     }
 }

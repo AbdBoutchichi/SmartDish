@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.Set;
 
 @Data
 @NoArgsConstructor
@@ -18,10 +19,9 @@ public class UtilisateurResponseDto {
     private String email;
     private String nom;
     private String prenom;
-    private String telephone;
-    private String adresse;
     private Role role;
     private Boolean actif;
+    private Set<Long> alimentsExclusIds;
     private LocalDateTime dateCreation;
     private LocalDateTime dateModification;
 }

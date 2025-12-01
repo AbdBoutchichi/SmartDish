@@ -3,12 +3,13 @@ package com.springbootTemplate.univ.soa.dto;
 import com.springbootTemplate.univ.soa.model.Role;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.util.Set;
 
 @Data
 @NoArgsConstructor
@@ -32,10 +33,9 @@ public class UtilisateurCreateDto {
     @Size(min = 2, max = 100, message = "Le prénom doit contenir entre 2 et 100 caractères")
     private String prenom;
 
-    @Pattern(regexp = "^(\\+33|0)[1-9](\\d{2}){4}$", message = "Le numéro de téléphone doit être valide")
-    private String telephone;
-
-    private String adresse;
-
+    @Builder.Default
     private Role role = Role.USER;
+
+    // Optionnel : IDs des aliments exclus
+    private Set<Long> alimentsExclusIds;
 }

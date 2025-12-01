@@ -1,11 +1,12 @@
 package com.springbootTemplate.univ.soa.dto;
 
-import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.util.Set;
 
 @Data
 @NoArgsConstructor
@@ -19,11 +20,9 @@ public class UtilisateurUpdateDto {
     @Size(min = 2, max = 100, message = "Le prénom doit contenir entre 2 et 100 caractères")
     private String prenom;
 
-    @Pattern(regexp = "^(\\+33|0)[1-9](\\d{2}){4}$", message = "Le numéro de téléphone doit être valide")
-    private String telephone;
-
-    private String adresse;
-
     @Size(min = 8, message = "Le mot de passe doit contenir au moins 8 caractères")
     private String nouveauMotDePasse;
+
+    // Optionnel : mettre à jour les aliments exclus
+    private Set<Long> alimentsExclusIds;
 }
