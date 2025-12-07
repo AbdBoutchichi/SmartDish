@@ -117,6 +117,18 @@ spec:
           value: "root123"
         - name: SPRING_JPA_HIBERNATE_DDL_AUTO
           value: "update"
+        - name: LOG_LEVEL_ROOT
+          value: "INFO"
+        - name: LOG_LEVEL_JDBC
+          value: "DEBUG"
+        - name: LOG_LEVEL_HIBERNATE_SQL
+          value: "INFO"
+        - name: LOG_LEVEL_HIBERNATE_BINDER
+          value: "INFO"
+        - name: ACTUATOR_ENDPOINTS
+          value: "health,info,metrics"
+        - name: ACTUATOR_HEALTH_DETAILS
+          value: "always"
         ports:
         - containerPort: 8090
         resources:

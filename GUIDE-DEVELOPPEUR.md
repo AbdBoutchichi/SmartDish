@@ -637,7 +637,30 @@ kubectl logs <pod-name> -n soa-local
 
 ### Problèmes Courants
 
-#### 1. Port déjà utilisé
+#### 1. MS-Persistance échoue en Kubernetes avec erreur "No enum constant"
+
+**Symptôme** :
+```
+Failed to bind properties under 'logging.level.org.springframework.jdbc'
+Value: "${LOG_LEVEL_JDBC}"
+Reason: No enum constant org.springframework.boot.logging.LogLevel.${LOG_LEVEL_JDBC}
+```
+
+**Cause** : Variables d'environnement manquantes dans le deployment K8s
+
+**Solution** : Vérifier que toutes les variables sont définies dans `.github/k8s-integration/deployment.yaml` :
+```yaml
+env:
+- name: LOG_LEVEL_ROOT
+  value: "INFO"
+- name: LOG_LEVEL_JDBC
+  value: "DEBUG"
+# etc.
+```
+
+**Voir** : `FIX-MS-PERSISTANCE-K8S.md` pour les détails complets
+
+#### 2. Port déjà utilisé
 
 ```powershell
 # Trouver le processus
@@ -647,11 +670,11 @@ netstat -ano | findstr :8080
 taskkill /PID <PID> /F
 ```
 
-#### 2. Tests Newman échouent
+#### 3. Tests Newman échouent
 
 ```powershell
 # Vérifier que l'API répond
-curl http://localhost:8080/health
+curl http://localhost:8081/actuator/health
 
 # Vérifier les logs de l'API
 docker-compose logs ms-recette
@@ -660,21 +683,21 @@ docker-compose logs ms-recette
 docker-compose restart ms-recette
 ```
 
-#### 3. Base de données ne se connecte pas
+#### 4. Base de données ne se connecte pas
 
 ```powershell
 # Vérifier MySQL
 docker-compose logs mysql
 
 # Vérifier la connexion
-docker-compose exec mysql mysql -uroot -ppassword -e "SHOW DATABASES;"
+docker-compose exec mysql mysql -uroot -p${MYSQL_ROOT_PASSWORD} -e "SHOW DATABASES;"
 
 # Recréer la base de données
 docker-compose down -v
 docker-compose up -d
 ```
 
-#### 4. Build Maven échoue
+#### 5. Build Maven échoue
 
 ```bash
 # Nettoyer complètement
@@ -687,7 +710,7 @@ mvn clean install -U
 mvn clean package -DskipTests
 ```
 
-#### 5. Image Docker ne se build pas
+#### 6. Image Docker ne se build pas
 
 ```bash
 # Build manuel avec logs

@@ -74,23 +74,23 @@ if (fs.existsSync(dataPath)) {
     const data = JSON.parse(dataContent);
     if (Array.isArray(data)) {
       opts.iterationCount = data.length;
-      console.log(`📊 Dataset loaded: ${data.length} iterations will be executed`);
+      console.log(`Dataset loaded: ${data.length} iterations will be executed`);
     }
   } catch (e) {
-    console.warn('⚠️  Could not parse dataset, using default iteration count');
+    console.warn('Could not parse dataset, using default iteration count');
   }
 } else {
-  console.warn('⚠️  Dataset file not found, running single iteration');
+  console.warn('Dataset file not found, running single iteration');
 }
 
-console.log('\n🏃 Starting Newman test execution...\n');
+console.log('\nStarting Newman test execution...\n');
 
 // Run Newman
 newman.run(opts, function (err, summary) {
   console.log('\n═══════════════════════════════════════════════════════');
 
   if (err) {
-    console.error('❌ Newman execution error:', err);
+    console.error('Newman execution error:', err);
     console.log('═══════════════════════════════════════════════════════\n');
     process.exit(2);
   }
