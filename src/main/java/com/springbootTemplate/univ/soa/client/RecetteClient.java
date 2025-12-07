@@ -149,14 +149,21 @@ public class RecetteClient {
      */
     @Cacheable(value = "recettesByCategorie", key = "#categorie", unless = "#result == null || #result.isEmpty()")
     public List<RecetteResponse> getRecettesByCategorie(String categorie) {
-        String url = recetteServiceUrl + "/api/persistance/recettes/categorie/" + categorie;
-        log.info("GET {} - Récupération des recettes par catégorie", url);
+        String url = recetteServiceUrl + "/api/persistance/recettes/search";
+        log.info("POST {} - Récupération des recettes par catégorie: {}", url, categorie);
 
         try {
+            RecetteSearchRequest searchRequest = new RecetteSearchRequest();
+            searchRequest.setCategorie(categorie);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<RecetteSearchRequest> httpRequest = new HttpEntity<>(searchRequest, headers);
+
             ResponseEntity<List<RecetteResponse>> response = restTemplate.exchange(
                     url,
-                    HttpMethod.GET,
-                    null,
+                    HttpMethod.POST,
+                    httpRequest,
                     new ParameterizedTypeReference<List<RecetteResponse>>() {}
             );
 

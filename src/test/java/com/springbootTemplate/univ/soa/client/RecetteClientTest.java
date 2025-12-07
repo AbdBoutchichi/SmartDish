@@ -146,8 +146,8 @@ class RecetteClientTest {
 
         when(restTemplate.exchange(
                 anyString(),
-                eq(HttpMethod.GET),
-                isNull(),
+                eq(HttpMethod.POST),
+                any(HttpEntity.class),
                 any(ParameterizedTypeReference.class)
         )).thenReturn(responseEntity);
 
@@ -262,8 +262,8 @@ class RecetteClientTest {
     void testGetRecettesByCategorie_ThrowsException() {
         when(restTemplate.exchange(
                 anyString(),
-                eq(HttpMethod.GET),
-                isNull(),
+                eq(HttpMethod.POST),
+                any(HttpEntity.class),
                 any(ParameterizedTypeReference.class)
         )).thenThrow(new RuntimeException("Service error"));
 
