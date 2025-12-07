@@ -117,6 +117,8 @@ spec:
           value: "root123"
         - name: SPRING_JPA_HIBERNATE_DDL_AUTO
           value: "update"
+        - name: SERVER_PORT
+          value: "8090"
         - name: LOG_LEVEL_ROOT
           value: "INFO"
         - name: LOG_LEVEL_JDBC
