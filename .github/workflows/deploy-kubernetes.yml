@@ -19,7 +19,7 @@ jobs:
   deploy:
     name: Deploy to Kubernetes (Minikube)
     runs-on: ubuntu-22.04
-    timeout-minutes: 30
+    timeout-minutes: 20
     outputs:
       service-url: ${{ steps.endpoint.outputs.service_url }}
     steps:
@@ -32,193 +32,161 @@ jobs:
           name: docker-image
           path: ./
 
-      - name: Setup Minikube (manual installation)
+      - name: Setup Minikube and load image
         run: |
-          echo "📦 Installing Minikube..."
-          curl -LO https://storage.googleapis.com/minikube/releases/v1.32.0/minikube-linux-amd64
-          sudo install minikube-linux-amd64 /usr/local/bin/minikube
-          rm minikube-linux-amd64
+          # Installation rapide de Minikube
+          curl -sLO https://storage.googleapis.com/minikube/releases/v1.32.0/minikube-linux-amd64
+          sudo install minikube-linux-amd64 /usr/local/bin/minikube && rm minikube-linux-amd64
           
-          echo "🚀 Starting Minikube..."
-          minikube start --driver=docker --memory=4096 --cpus=2 --kubernetes-version=v1.28.0
+          # Démarrage de Minikube
+          minikube start --driver=docker --memory=3072 --cpus=2 --kubernetes-version=v1.28.0
           
-          echo "⏳ Waiting for Minikube to be ready..."
-          minikube status
-          
-          echo "✅ Minikube started successfully"
-
-      - name: Configure kubectl
-        run: |
-          echo "🔧 Configuring kubectl..."
+          # Configuration kubectl
           kubectl config use-context minikube
-          kubectl config view
           
-          echo "✅ kubectl configured"
-
-      - name: Verify Minikube
-        run: |
-          echo "🔍 Cluster info:"
-          kubectl cluster-info
+          # Attendre que le cluster soit prêt
+          echo "⏳ Waiting for cluster to be ready..."
+          sleep 10
           
-          echo "📊 Nodes:"
-          kubectl get nodes
+          # Vérifier que CoreDNS est déployé et prêt
+          echo "⏳ Waiting for CoreDNS pods to be created..."
+          for i in {1..30}; do
+            if kubectl get pods -n kube-system -l k8s-app=kube-dns 2>/dev/null | grep -q "coredns"; then
+              echo "CoreDNS pods found, waiting for ready state..."
+              kubectl wait --for=condition=ready pod -l k8s-app=kube-dns -n kube-system --timeout=120s && break
+            fi
+            echo "Waiting for CoreDNS pods... ($i/30)"
+            sleep 3
+          done
           
-          echo "🐳 Docker env:"
-          minikube docker-env
-
-      - name: Load Docker image into Minikube
-        run: |
-          echo "📥 Loading Docker image into Minikube..."
+          echo "📋 Cluster status:"
+          kubectl get pods -n kube-system
+          
+          # Charger l'image
+          echo "📥 Loading Docker image..."
           minikube image load app-image.tar
-          
-          echo "🏷️ Tagging image inside Minikube..."
           minikube image tag ${{ env.IMAGE_NAME }}:${{ inputs.image-tag }} ${{ env.IMAGE_NAME }}:latest
           
-          echo "📋 Images inside Minikube:"
-          minikube image ls | grep ${{ env.IMAGE_NAME }} || echo "⚠️  Image not found yet, will retry..."
-          
-          echo "✅ Image loaded and tagged successfully"
+          echo "✅ Minikube ready with image loaded"
 
-      - name: Create namespace
+      - name: Deploy infrastructure and application
         run: |
+          # Créer namespace
           kubectl create namespace ${{ env.NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
-          echo "✅ Namespace created/verified"
-
-      - name: Deploy application to Minikube
-        run: |
-          echo "🚀 Deploying manifests..."
+          
+          # Déployer tout en une seule commande
           kubectl apply -f k8s/minikube/ -n ${{ env.NAMESPACE }}
           
-          echo "📊 Current deployments:"
-          kubectl get deployments -n ${{ env.NAMESPACE }}
-          
-          echo "✅ Manifests applied (using image: ms-persistance:latest)"
+          echo "✅ All manifests applied"
 
-      - name: Wait for pods to be created
+      - name: Wait for dependencies (MySQL & MinIO)
         run: |
-          echo "⏳ Waiting 15 seconds for pods to be created..."
-          sleep 15
+          echo "⏳ Waiting for MySQL and MinIO..."
           
-          echo "📊 Current state:"
-          kubectl get all -n ${{ env.NAMESPACE }}
-
-      - name: Wait for MySQL to be ready
-        run: |
-          echo "⏳ Waiting for MySQL to be ready (max 120s)..."
-          kubectl wait --for=condition=ready pod -l app=mysql -n ${{ env.NAMESPACE }} --timeout=120s || {
-            echo "❌ MySQL not ready!"
-            kubectl get pods -n ${{ env.NAMESPACE }} -l app=mysql
+          # Attendre un peu que les pods soient créés
+          sleep 10
+          
+          # Attendre MySQL (timeout 90s)
+          kubectl wait --for=condition=ready pod -l app=mysql -n ${{ env.NAMESPACE }} --timeout=90s &
+          MYSQL_PID=$!
+          
+          # Attendre MinIO (timeout 120s car PVC + image pull peuvent être lents)
+          kubectl wait --for=condition=ready pod -l app=minio -n ${{ env.NAMESPACE }} --timeout=120s &
+          MINIO_PID=$!
+          
+          # Attendre MySQL
+          wait $MYSQL_PID || { 
+            echo "❌ MySQL timeout"
             kubectl describe pod -l app=mysql -n ${{ env.NAMESPACE }}
-            kubectl logs -l app=mysql -n ${{ env.NAMESPACE }} --tail=50 || true
+            kubectl logs -l app=mysql -n ${{ env.NAMESPACE }} --tail=30
             exit 1
           }
-          echo "✅ MySQL is ready!"
-
-      - name: Deploy phpMyAdmin
-        run: |
-          echo "🐬 Deploying phpMyAdmin..."
-          kubectl apply -f k8s/minikube/phpmyadmin.yaml -n ${{ env.NAMESPACE }}
+          echo "✅ MySQL ready"
           
-          echo "⏳ Waiting for phpMyAdmin to be ready..."
-          kubectl wait --for=condition=ready pod -l app=phpmyadmin -n ${{ env.NAMESPACE }} --timeout=60s || {
-            echo "⚠️ phpMyAdmin not ready, but continuing..."
-            kubectl get pods -n ${{ env.NAMESPACE }} -l app=phpmyadmin
+          # Attendre MinIO
+          wait $MINIO_PID || { 
+            echo "❌ MinIO timeout"
+            kubectl describe pod -l app=minio -n ${{ env.NAMESPACE }}
+            kubectl logs -l app=minio -n ${{ env.NAMESPACE }} --tail=30
+            exit 1
           }
-          echo "✅ phpMyAdmin deployed!"
-
-      - name: Debug pods before rollout
-        if: always()
-        run: |
-          echo "🔍 Current pods status:"
-          kubectl get pods -n ${{ env.NAMESPACE }} -o wide
+          echo "✅ MinIO ready"
           
-          echo ""
-          echo "🔍 ms-persistance pods details:"
-          kubectl describe pods -l app=ms-persistance -n ${{ env.NAMESPACE }} || echo "No ms-persistance pods yet"
-          
-          echo ""
-          echo "🔍 Recent events:"
-          kubectl get events -n ${{ env.NAMESPACE }} --sort-by='.lastTimestamp' --field-selector type!=Normal | tail -20 || echo "No error events"
+          echo "✅ All dependencies ready"
 
-      - name: Wait for deployment
+      - name: Wait for application deployment
         run: |
-          echo "⏳ Waiting for deployment rollout..."
-          kubectl rollout status deployment/ms-persistance -n ${{ env.NAMESPACE }} --timeout=300s || {
-            echo "❌ Rollout timeout! Gathering debug info..."
+          echo "⏳ Waiting for ms-persistance rollout..."
+          
+          # Vérifier que les services sont accessibles
+          echo "📋 Services:"
+          kubectl get svc -n ${{ env.NAMESPACE }}
+          
+          # Attendre le rollout avec timeout de 180s
+          kubectl rollout status deployment/ms-persistance -n ${{ env.NAMESPACE }} --timeout=180s || {
+            echo "❌ Rollout failed"
+            echo ""
+            echo "📋 Pods status:"
             kubectl get pods -n ${{ env.NAMESPACE }} -o wide
-            kubectl describe pods -n ${{ env.NAMESPACE }}
-            kubectl logs -l app=ms-persistance -n ${{ env.NAMESPACE }} --tail=50 || true
+            echo ""
+            echo "📋 Pod logs:"
+            kubectl logs -l app=ms-persistance -n ${{ env.NAMESPACE }} --tail=100 || true
+            echo ""
+            echo "📋 Pod describe:"
+            kubectl describe pods -l app=ms-persistance -n ${{ env.NAMESPACE }}
             exit 1
           }
-          
-          echo "✅ Deployment successful"
-          kubectl get pods -n ${{ env.NAMESPACE }} -o wide
+          echo "✅ Application deployed"
 
-      - name: Get service endpoint
+      - name: Setup port-forward and test health
         id: endpoint
         run: |
-          kubectl wait --for=condition=ready pod -l app=ms-persistance -n ${{ env.NAMESPACE }} --timeout=300s
-          SERVICE_URL=$(minikube service ms-persistance --url -n ${{ env.NAMESPACE }} 2>/dev/null || echo "")
-          if [ -z "$SERVICE_URL" ]; then
-            MINIKUBE_IP=$(minikube ip)
-            NODEPORT=$(kubectl get svc ms-persistance -n ${{ env.NAMESPACE }} -o jsonpath='{.spec.ports[0].nodePort}')
-            SERVICE_URL="http://$MINIKUBE_IP:$NODEPORT"
-          fi
-          echo "service_url=$SERVICE_URL" >> $GITHUB_OUTPUT
-          echo "Service accessible at: $SERVICE_URL"
-
-      - name: Test service health
-        run: |
-          echo "🏥 Testing service health..."
-          SERVICE_URL="${{ steps.endpoint.outputs.service_url }}"
+          # Démarrer port-forward
+          nohup kubectl port-forward svc/ms-persistance 8090:8090 -n ${{ env.NAMESPACE }} > /tmp/pf.log 2>&1 &
           
-          # Attendre que le service soit vraiment prêt
+          # Attendre que le port soit ouvert (max 15s)
+          for i in {1..15}; do
+            nc -z localhost 8090 2>/dev/null && break
+            sleep 1
+          done
+          
+          SERVICE_URL="http://localhost:8090"
+          echo "service_url=$SERVICE_URL" >> $GITHUB_OUTPUT
+          
+          # Health check rapide (max 60s au lieu de 75s)
           for i in {1..12}; do
-            if curl -f --connect-timeout 5 "$SERVICE_URL/actuator/health" 2>/dev/null; then
-              echo "✅ Service is healthy!"
-              break
+            if curl -sf --connect-timeout 5 "$SERVICE_URL/actuator/health" >/dev/null 2>&1; then
+              echo "✅ Service healthy at $SERVICE_URL"
+              exit 0
             fi
-            echo "⏳ Waiting for service to be fully ready ($i/12)..."
             sleep 5
           done
           
-          # Test final
-          curl -f "$SERVICE_URL/actuator/health" || \
-          curl -f "$SERVICE_URL/health" || \
-          curl -f "$SERVICE_URL/" || {
-            echo "❌ Health check failed"
-            kubectl logs -l app=ms-persistance -n ${{ env.NAMESPACE }} --tail=50
-            exit 1
-          }
-          
-          echo "✅ Service is healthy and ready for tests"
-
-      - name: Install Newman for integration tests
-        working-directory: ./tests/newman
-        run: |
-          echo "📦 Installing Newman dependencies..."
-          npm install
-          echo "✅ Newman installed"
-
-      - name: Configure Newman environment
-        working-directory: ./tests/newman
-        run: |
-          echo "📝 Configuring Newman with service URL..."
-          SERVICE_URL="${{ steps.endpoint.outputs.service_url }}"
-          
-          jq --arg url "$SERVICE_URL" \
-            '(.values[] | select(.key == "baseUrl") | .value) = $url' \
-            env.json > env.tmp.json
-          
-          echo "📋 Environment configuration:"
-          cat env.tmp.json | jq '.'
-          echo "✅ Environment configured with URL: $SERVICE_URL"
+          echo "❌ Health check failed"
+          cat /tmp/pf.log || true
+          kubectl logs -l app=ms-persistance -n ${{ env.NAMESPACE }} --tail=50
+          exit 1
 
       - name: Run Newman integration tests
         working-directory: ./tests/newman
         run: |
-          echo "🚀 Starting Newman integration tests..."
-          echo "🎯 Target: ${{ steps.endpoint.outputs.service_url }}"
+          # Installation et configuration Newman en parallèle
+          npm install --silent &
+          NPM_PID=$!
+          
+          # Configurer l'environnement
+          SERVICE_URL="${{ steps.endpoint.outputs.service_url }}"
+          jq --arg url "$SERVICE_URL" \
+            '(.values[] | select(.key == "baseUrl") | .value) = $url' \
+            env.json > env.tmp.json
+          
+          wait $NPM_PID
+          
+          # Vérifier port-forward
+          nc -z localhost 8090 || {
+            nohup kubectl port-forward svc/ms-persistance 8090:8090 -n ${{ env.NAMESPACE }} > /tmp/pf.log 2>&1 &
+            sleep 3
+          }
           
           mkdir -p newman-results
           
@@ -227,38 +195,44 @@ jobs:
             --iteration-data ./dataset.json \
             --reporters cli,json \
             --reporter-json-export ./newman-results/newman-report.json \
-            --timeout-request 30000 \
+            --timeout-request 20000 \
             --bail || {
-              echo "❌ Newman tests failed!"
-              echo ""
-              echo "📊 Service status:"
-              curl -v "${{ steps.endpoint.outputs.service_url }}/actuator/health" || true
-              echo ""
-              echo "📋 Pod logs:"
-              kubectl logs -l app=ms-persistance -n ${{ env.NAMESPACE }} --tail=100
+              echo "❌ Tests failed"
+              kubectl logs -l app=ms-persistance -n ${{ env.NAMESPACE }} --tail=50
               exit 1
             }
           
-          echo ""
-          echo "✅ All Newman tests passed successfully!"
+          echo "✅ All tests passed!"
 
-      - name: Upload Newman results
+      - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: newman-results
           path: tests/newman/newman-results/
-          retention-days: 7
+          retention-days: 5
 
       - name: Upload service URL artifact
+        if: always()
         run: |
           echo "${{ steps.endpoint.outputs.service_url }}" > service-url.txt
 
       - name: Upload service URL
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: service-url
           path: service-url.txt
-          retention-days: 1
+          retention-days: 5
+
+      - name: Debug info on failure
+        if: failure()
+        run: |
+          echo "=== Pods ==="
+          kubectl get pods -n ${{ env.NAMESPACE }} -o wide
+          echo "=== Events ==="
+          kubectl get events -n ${{ env.NAMESPACE }} --sort-by='.lastTimestamp' | tail -20
+          echo "=== App Logs ==="
+          kubectl logs -l app=ms-persistance -n ${{ env.NAMESPACE }} --tail=100 || true
 
 
