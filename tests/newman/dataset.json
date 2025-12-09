@@ -1,0 +1,53 @@
+[
+  {
+    "titre": "Spaghetti Carbonara",
+    "description": "Recette italienne traditionnelle avec une sauce crémeuse aux oeufs et au parmesan",
+    "tempsPreparation": 15,
+    "tempsCuisson": 20,
+    "nombrePersonnes": 4,
+    "difficulte": "FACILE",
+    "categorie": "PLAT_PRINCIPAL",
+    "instructions": "1. Faire cuire les pâtes al dente\\n2. Préparer la sauce avec oeufs et parmesan\\n3. Faire revenir les lardons\\n4. Mélanger hors du feu\\n5. Servir avec du poivre frais"
+  },
+  {
+    "titre": "Tiramisu Maison",
+    "description": "Dessert italien classique au café et mascarpone, léger et savoureux",
+    "tempsPreparation": 30,
+    "tempsCuisson": 0,
+    "nombrePersonnes": 6,
+    "difficulte": "MOYEN",
+    "categorie": "DESSERT",
+    "instructions": "1. Préparer le café fort\\n2. Monter les blancs en neige\\n3. Mélanger mascarpone et jaunes\\n4. Tremper les biscuits\\n5. Monter en couches\\n6. Réfrigérer 4h minimum"
+  },
+  {
+    "titre": "Salade César",
+    "description": "Salade fraîche avec poulet grillé, sauce César maison et croûtons",
+    "tempsPreparation": 15,
+    "tempsCuisson": 10,
+    "nombrePersonnes": 2,
+    "difficulte": "FACILE",
+    "categorie": "ENTREE",
+    "instructions": "1. Griller le poulet assaisonné\\n2. Préparer la sauce César maison\\n3. Couper la laitue romaine\\n4. Préparer les croûtons\\n5. Assembler et servir"
+  },
+  {
+    "titre": "Risotto aux Champignons",
+    "description": "Risotto crémeux aux champignons de Paris et parmesan",
+    "tempsPreparation": 10,
+    "tempsCuisson": 25,
+    "nombrePersonnes": 4,
+    "difficulte": "MOYEN",
+    "categorie": "PLAT_PRINCIPAL",
+    "instructions": "1. Faire revenir les champignons\\n2. Torréfier le riz\\n3. Ajouter le bouillon progressivement\\n4. Incorporer le parmesan\\n5. Servir crémeux"
+  },
+  {
+    "titre": "Mousse au Chocolat",
+    "description": "Mousse au chocolat noir légère et aérienne",
+    "tempsPreparation": 20,
+    "tempsCuisson": 5,
+    "nombrePersonnes": 6,
+    "difficulte": "DIFFICILE",
+    "categorie": "DESSERT",
+    "instructions": "1. Faire fondre le chocolat\\n2. Séparer les blancs des jaunes\\n3. Monter les blancs en neige ferme\\n4. Incorporer délicatement\\n5. Réfrigérer 2h"
+  }
+]
+

@@ -1,4 +1,3 @@
-version: '3.8'
 
 networks:
   microservices-network:
@@ -155,13 +154,104 @@ services:
       "
 
   # ========================================
+  # MS-Persistance - Service de persistance (depuis Docker Hub)
+  # ========================================
+  ms-persistance:
+    image: abdboutchichi/ms-persistance:latest
+    container_name: ms-persistance-local
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      # MySQL Configuration
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE}
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+
+      # MongoDB Configuration
+      SPRING_DATA_MONGODB_URI: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongodb:27017/${MONGO_DATABASE}?authSource=admin
+
+      # MinIO Configuration
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+
+      # JPA Configuration
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_SHOW_SQL: "true"
+
+      # Logging Configuration
+      LOG_LEVEL_ROOT: ${LOG_LEVEL_ROOT}
+      LOG_LEVEL_JDBC: ${LOG_LEVEL_JDBC}
+      LOG_LEVEL_HIBERNATE_SQL: ${LOG_LEVEL_HIBERNATE_SQL}
+      LOG_LEVEL_HIBERNATE_BINDER: ${LOG_LEVEL_HIBERNATE_BINDER}
+
+      # Server Configuration
+      SERVER_PORT: 8090
+    ports:
+      - "${MS_PERSISTANCE_PORT}:8090"
+    networks:
+      - microservices-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8090/actuator/health"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 60s
+
+  # ========================================
+  # Spring Boot API (ms-recette)
+  # ========================================
+  ms-recette:
+    image: ms-recette:latest
+    container_name: ms-recette-local
+    restart: unless-stopped
+    depends_on:
+      ms-persistance:
+        condition: service_healthy
+    environment:
+      # MS-Persistance URL - Communication HTTP uniquement
+      MS_PERSISTANCE_URL: http://ms-persistance:8090
+
+      # Server Configuration
+      SERVER_PORT: 8081
+
+      # User Information (pour Swagger)
+      USERNAME: Abdelmoughit
+      USEREMAIL: abdelbouch2002@gmail.com
+
+      # Logging Configuration
+      LOG_LEVEL_ROOT: ${LOG_LEVEL_ROOT}
+      LOG_LEVEL_JDBC: ${LOG_LEVEL_JDBC}
+      LOG_LEVEL_HIBERNATE_SQL: ${LOG_LEVEL_HIBERNATE_SQL}
+      LOG_LEVEL_HIBERNATE_BINDER: ${LOG_LEVEL_HIBERNATE_BINDER}
+    ports:
+      - "8081:8081"
+    networks:
+      - microservices-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+
+  # ========================================
   # Newman - Tests d'intégration API
   # ========================================
   newman:
     image: postman/newman:alpine
     container_name: newman-local
+    depends_on:
+      ms-recette:
+        condition: service_healthy
     volumes:
-      - ./newman-collections:/etc/newman
+      - ./tests/newman:/etc/newman
     networks:
       - microservices-network
     entrypoint: ["tail", "-f", "/dev/null"]
@@ -178,6 +268,8 @@ services:
       mongodb:
         condition: service_healthy
       minio:
+        condition: service_healthy
+      ms-recette:
         condition: service_healthy
     environment:
       MYSQL_PORT: ${MYSQL_PORT}
@@ -209,6 +301,18 @@ services:
       echo '╚════════════════════════════════════════════════════════════════╝';
       echo '';
       echo '📦 SERVICES DISPONIBLES :';
+      echo '';
+      echo '┌────────────────────────────────────────────────────────────────┐';
+      echo '│ 🚀 Spring Boot API (RecipeYouLove)                            │';
+      echo '│    🔗 Home            : http://localhost:8080/                 │';
+      echo '│    🔗 Health          : http://localhost:8080/health           │';
+      echo '│    🔗 Status          : http://localhost:8080/api/status       │';
+      echo '│    🔗 Database Test   : http://localhost:8080/api/database/test│';
+      echo '│    🔗 Actuator Health : http://localhost:8080/actuator/health  │';
+      echo '│                                                                │';
+      echo '│    📖 Documentation Swagger (si activé) :                      │';
+      echo '│    http://localhost:8080/swagger-ui.html                       │';
+      echo '└────────────────────────────────────────────────────────────────┘';
       echo '';
       echo '┌────────────────────────────────────────────────────────────────┐';
       echo '│ 🗄️  MySQL Database                                            │';

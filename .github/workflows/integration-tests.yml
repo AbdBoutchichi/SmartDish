@@ -1,0 +1,183 @@
+name: Integration Tests
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        type: string
+      service-url:
+        description: 'Service URL to test'
+        required: false
+        type: string
+
+jobs:
+  newman-tests:
+    name: Run Newman integration tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download service URL artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: service-url
+          path: ./
+
+      - name: Set service URL from artifact
+        run: |
+          if [ -f "service-url.txt" ]; then
+            SERVICE_URL=$(cat service-url.txt)
+            echo "SERVICE_URL=$SERVICE_URL" >> $GITHUB_ENV
+            echo "✅ Service URL loaded: $SERVICE_URL"
+          else
+            echo "❌ service-url.txt not found!"
+            echo "Using fallback URL from input..."
+            echo "SERVICE_URL=${{ inputs.service-url || 'http://localhost:8080' }}" >> $GITHUB_ENV
+          fi
+          
+          echo "📍 Target service: $SERVICE_URL"
+
+      - name: Test MS-Recette and MS-Persistance connectivity
+        run: |
+          echo "🔌 Testing connectivity to services..."
+          echo "📍 MS-Recette URL: ${{ env.SERVICE_URL }}"
+          MS_PERSISTANCE_URL=$(echo ${{ env.SERVICE_URL }} | sed 's/8081/8090/')
+          echo "📍 MS-Persistance URL: $MS_PERSISTANCE_URL"
+          
+          # Attendre que MS-Persistance soit prêt
+          echo "⏳ Waiting for MS-Persistance..."
+          for i in {1..30}; do
+            if curl -s -f -o /dev/null "$MS_PERSISTANCE_URL/actuator/health"; then
+              echo "✅ MS-Persistance is ready!"
+              break
+            fi
+            echo "⏳ Attempt $i/30 - MS-Persistance not ready yet..."
+            sleep 5
+          done
+          
+          # Attendre que MS-Recette soit prêt (max 60 secondes)
+          echo "⏳ Waiting for MS-Recette..."
+          for i in {1..12}; do
+            if curl -s --connect-timeout 5 --max-time 10 "${{ env.SERVICE_URL }}/actuator/health" > /dev/null 2>&1; then
+              echo "✅ Service is reachable and healthy!"
+              curl -s "${{ env.SERVICE_URL }}/actuator/health" | jq '.' || curl -s "${{ env.SERVICE_URL }}/actuator/health"
+              break
+            fi
+            echo "⏳ Waiting for service to be ready ($i/12)..."
+            sleep 5
+          done
+          
+          # Vérification finale
+          if ! curl -f --connect-timeout 10 --max-time 30 "${{ env.SERVICE_URL }}/actuator/health"; then
+            echo "❌ Cannot reach service at ${{ env.SERVICE_URL }}"
+            echo "Service may not be ready or URL is incorrect"
+            exit 1
+          fi
+          
+          echo "✅ Service connectivity verified!"
+
+      - name: Install Newman
+        working-directory: ./tests/newman
+        run: |
+          echo "📦 Installing Newman dependencies..."
+          npm install
+          echo "✅ Newman installed successfully"
+
+      - name: Update environment with service URL
+        working-directory: ./tests/newman
+        run: |
+          echo "📝 Configuring Newman environment with service URLs..."
+          echo "🎯 MS-Recette URL: ${{ env.SERVICE_URL }}"
+          
+          MS_PERSISTANCE_URL=$(echo ${{ env.SERVICE_URL }} | sed 's/:30081/:30090/' | sed 's/:8081/:8090/')
+          echo "🎯 MS-Persistance URL: $MS_PERSISTANCE_URL"
+          
+          jq --arg recetteUrl "${{ env.SERVICE_URL }}" --arg persistanceUrl "$MS_PERSISTANCE_URL" \
+            '(.values[] | select(.key == "baseUrl") | .value) = $recetteUrl |
+             (.values[] | select(.key == "persistanceUrl") | .value) = $persistanceUrl' \
+            env.json > env.tmp.json
+          
+          echo "📋 Environment configuration:"
+          cat env.tmp.json | jq '.'
+          
+          echo "✅ Environment configured with both service URLs"
+
+      - name: Setup test data in MS-Persistance
+        run: |
+          echo "🍽️ Creating test aliments in MS-Persistance..."
+          MS_PERSISTANCE_URL=$(echo ${{ env.SERVICE_URL }} | sed 's/8081/8090/')
+          
+          # Créer 3 aliments de test
+          echo "📝 Creating Aliment 1: Spaghetti"
+          curl -X POST "$MS_PERSISTANCE_URL/api/persistance/aliments" \
+            -H "Content-Type: application/json" \
+            -d '{"nom":"Spaghetti","categorie":"CEREALE","calories":350,"proteines":12.0,"glucides":70.0,"lipides":2.0}' \
+            --fail --silent --show-error || echo "⚠️ Aliment 1 may already exist"
+          
+          echo "📝 Creating Aliment 2: Oeufs"
+          curl -X POST "$MS_PERSISTANCE_URL/api/persistance/aliments" \
+            -H "Content-Type: application/json" \
+            -d '{"nom":"Oeufs","categorie":"VIANDE","calories":155,"proteines":13.0,"glucides":1.1,"lipides":11.0}' \
+            --fail --silent --show-error || echo "⚠️ Aliment 2 may already exist"
+          
+          echo "📝 Creating Aliment 3: Parmesan"
+          curl -X POST "$MS_PERSISTANCE_URL/api/persistance/aliments" \
+            -H "Content-Type: application/json" \
+            -d '{"nom":"Parmesan","categorie":"LAITIER","calories":431,"proteines":38.0,"glucides":4.0,"lipides":29.0}' \
+            --fail --silent --show-error || echo "⚠️ Aliment 3 may already exist"
+          
+          echo "✅ Test aliments created in MS-Persistance!"
+
+      - name: Run Newman integration tests
+        working-directory: ./tests/newman
+        run: |
+          echo "🚀 Starting Newman integration tests..."
+          echo "📋 Working directory: $(pwd)"
+          echo "🎯 Target URL: ${{ env.SERVICE_URL }}"
+          
+          # Créer le dossier de résultats
+          mkdir -p newman-results
+          
+          # Exécuter les tests Newman
+          npx newman run ./collection.json \
+            --environment ./env.tmp.json \
+            --iteration-data ./dataset.json \
+            --reporters cli,json \
+            --reporter-json-export ./newman-results/newman-report.json \
+            --timeout-request 30000 \
+            --bail || {
+              echo "❌ Newman tests failed!"
+              echo ""
+              echo "📊 Service status check:"
+              curl -v "${{ env.SERVICE_URL }}/actuator/health" || true
+              echo ""
+              echo "📋 Test environment:"
+              cat env.tmp.json
+              exit 1
+            }
+          
+          echo ""
+          echo "✅ Newman tests completed successfully!"
+
+      - name: Upload Newman results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: newman-results
+          path: tests/newman/newman-results/
+          retention-days: 7
+
+      - name: Display test summary
+        if: always()
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📊 Integration Tests Summary"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🎯 Target URL: ${{ env.SERVICE_URL }}"
+          echo "📦 Newman results uploaded as artifact"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

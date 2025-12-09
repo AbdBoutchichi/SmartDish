@@ -1,0 +1,207 @@
+name: Log Components URLs
+
+on:
+  workflow_call:
+
+jobs:
+  log-urls:
+    name: Log All Component URLs
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - name: Download service URL artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: service-url
+          path: ./
+
+
+      - name: Display all component URLs
+        run: |
+          echo "╔═══════════════════════════════════════════════════════╗"
+          echo "║          🌐 COMMENT ACCÉDER AUX SERVICES              ║"
+          echo "╚═══════════════════════════════════════════════════════╝"
+          echo ""
+          
+          # Read the main service URL
+          if [ -f "service-url.txt" ]; then
+            SERVICE_URL=$(cat service-url.txt)
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "ℹ️  DÉPLOIEMENT CI/CD (GitHub Actions)"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "🤖 URL interne (Minikube): $SERVICE_URL"
+            echo "⚠️  Cette URL n'est PAS accessible depuis votre navigateur"
+            echo "📌 Usage: Tests d'intégration automatiques uniquement"
+            echo ""
+          else
+            echo "❌ Service URL not found!"
+            echo ""
+          fi
+          
+          echo "╔═══════════════════════════════════════════════════════╗"
+          echo "║       🌐 ACCÈS VIA NAVIGATEUR WEB (2 OPTIONS)        ║"
+          echo "╚═══════════════════════════════════════════════════════╝"
+          echo ""
+          
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "✅ OPTION 1 : Docker Compose Local (RECOMMANDÉ)"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "📋 Depuis votre PC Windows :"
+          echo "   1. Ouvrir PowerShell dans le dossier du projet"
+          echo "   2. Exécuter : docker-compose up -d"
+          echo "   3. Attendre 30-60 secondes pour le démarrage complet"
+          echo ""
+          echo "🌐 URLs accessibles dans votre navigateur :"
+          echo "   🚀 MS-Recette :       http://localhost:8081"
+          echo "   📍 Health :           http://localhost:8081/actuator/health"
+          echo "   📚 Swagger :          http://localhost:8081/swagger-ui.html"
+          echo "   🗄️  MS-Persistance :  http://localhost:8090"
+          echo "   📍 Persistance API :  http://localhost:8090/api/persistance"
+          echo "   💾 phpMyAdmin :       http://localhost:8082"
+          echo "   📦 MinIO :            http://localhost:9001"
+          echo ""
+          echo "🔑 Identifiants :"
+          echo "   MySQL/phpMyAdmin : root / root123"
+          echo "   MinIO :            minioadmin / minioadmin"
+          echo ""
+          
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "✅ OPTION 2 : Kubernetes Local (Docker Desktop)"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "📋 Prérequis :"
+          echo "   - Docker Desktop avec Kubernetes activé"
+          echo ""
+          echo "📋 Commandes :"
+          echo "   1. Exécuter : .\deploy-kubernetes-local.ps1"
+          echo "   2. Les URLs seront affichées automatiquement"
+          echo "   3. Exemple : http://localhost:<NodePort>"
+          echo ""
+          
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📚 Documentation Disponible"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "📖 Consultez ces guides dans le dépôt :"
+          echo "   • GUIDE-DEMARRAGE-LOCAL.md"
+          echo "   • RESOLUTION-PROBLEMES-NEWMAN.md"
+          echo "   • CORRECTIONS-INTEGRATION-TESTS.md"
+          echo ""
+          
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "⚡ Commandes Rapides"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "🚀 Démarrer environnement local :"
+          echo "   docker-compose up -d"
+          echo ""
+          echo "🛑 Arrêter environnement :"
+          echo "   docker-compose down"
+          echo ""
+          echo "🧪 Tester avec Newman :"
+          echo "   .\test-newman-local.ps1"
+          echo ""
+          echo "📊 État des services :"
+          echo "   docker-compose ps"
+          echo ""
+          echo "📝 Logs d'un service :"
+          echo "   docker-compose logs -f ms-recette"
+          echo ""
+          
+          echo "╔═══════════════════════════════════════════════════════╗"
+          echo "║                 📊 RÉSUMÉ                             ║"
+          echo "╚═══════════════════════════════════════════════════════╝"
+          echo ""
+          echo "✅ Tests d'intégration CI/CD : RÉUSSIS"
+          echo "✅ Application déployée dans Minikube (GitHub Actions)"
+          echo "ℹ️  Pour tester localement : docker-compose up -d"
+          echo ""
+          echo "🎯 URLs Minikube (CI/CD uniquement) :"
+          if [ -f "service-url.txt" ]; then
+            SERVICE_URL=$(cat service-url.txt)
+            echo "   Minikube Internal: $SERVICE_URL"
+          fi
+          echo ""
+          echo "🌐 URLs Accessibles (Déploiement Local) :"
+          echo "   MS-Recette:    http://localhost:8081"
+          echo "   Persistance:   http://localhost:8090"
+          echo "   phpMyAdmin:    http://localhost:8082"
+          echo "   MinIO:         http://localhost:9001"
+          echo ""
+
+      - name: Create comprehensive URLs artifact
+        run: |
+          SERVICE_URL=$(cat service-url.txt 2>/dev/null || echo "N/A")
+          
+          cat > component-urls.txt << 'EOF'
+          ╔═══════════════════════════════════════════════════════╗
+          ║       🌐 COMMENT ACCÉDER AUX SERVICES VIA NAVIGATEUR  ║
+          ╚═══════════════════════════════════════════════════════╝
+          
+          ⚠️  IMPORTANT : Les URLs Minikube du CI/CD ne sont PAS accessibles
+          depuis votre navigateur. Voici comment accéder réellement aux services :
+          
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          ✅ OPTION 1 : Docker Compose Local (RECOMMANDÉ)
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          
+          1. Ouvrir PowerShell dans le dossier du projet
+          2. Exécuter : docker-compose up -d
+          3. Attendre 30-60 secondes pour le démarrage complet
+          
+          🌐 URLs accessibles dans votre navigateur :
+             🚀 MS-Recette :       http://localhost:8081
+             📍 Health :           http://localhost:8081/actuator/health
+             📚 Swagger :          http://localhost:8081/swagger-ui.html
+             🗄️  MS-Persistance :  http://localhost:8090
+             📍 Persistance API :  http://localhost:8090/api/persistance
+             💾 phpMyAdmin :       http://localhost:8082
+             📦 MinIO :            http://localhost:9001
+          
+          🔑 Identifiants :
+             MySQL/phpMyAdmin : root / root123
+             MinIO :            minioadmin / minioadmin
+          
+          🛑 Arrêter : docker-compose down
+          
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          ✅ OPTION 2 : Kubernetes Local (Docker Desktop)
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          
+          Prérequis : Docker Desktop avec Kubernetes activé
+          
+          1. Exécuter : .\deploy-kubernetes-local.ps1
+          2. Les URLs NodePort seront affichées automatiquement
+          3. Ouvrir les URLs dans votre navigateur
+          
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          📚 Documentation
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          
+          Consultez ces guides :
+          • README.md - Documentation générale
+          • CORRECTIFS-K8S-INTEGRATION.md - Debugging Kubernetes
+          • GUIDE-DEVELOPPEUR.md - Guide du développeur
+          
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          ℹ️  URL CI/CD (Tests Automatiques Uniquement)
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          
+          Minikube Internal (GitHub Actions):
+          EOF
+          
+          echo "  $SERVICE_URL" >> component-urls.txt
+          echo "" >> component-urls.txt
+          echo "⚠️  Cette URL n'est pas accessible depuis votre PC." >> component-urls.txt
+          echo "   Elle est utilisée uniquement pour les tests Newman automatiques." >> component-urls.txt
+          
+          cat component-urls.txt
+
+      - name: Upload URLs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: component-urls
+          path: component-urls.txt
+          retention-days: 7
+

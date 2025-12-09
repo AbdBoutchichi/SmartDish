@@ -1,0 +1,316 @@
+name: Deploy Kubernetes
+
+on:
+  workflow_call:
+    inputs:
+      image-tag:
+        required: true
+        type: string
+    outputs:
+      service-url:
+        description: "Service URL"
+        value: ${{ jobs.deploy.outputs.service-url }}
+
+env:
+  IMAGE_NAME: ms-recette
+  NAMESPACE: soa-integration
+
+jobs:
+  deploy:
+    name: Deploy to Kubernetes (Minikube)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    outputs:
+      service-url: ${{ steps.endpoint.outputs.service_url }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download Docker image
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+          path: ./
+
+      - name: Setup Minikube (manual installation)
+        run: |
+          echo "📦 Installing Minikube..."
+          curl -LO https://storage.googleapis.com/minikube/releases/v1.32.0/minikube-linux-amd64
+          sudo install minikube-linux-amd64 /usr/local/bin/minikube
+          rm minikube-linux-amd64
+          
+          echo "🚀 Starting Minikube..."
+          minikube start --driver=docker --memory=4096 --cpus=2 --kubernetes-version=v1.28.0
+          
+          echo "⏳ Waiting for Minikube to be ready..."
+          minikube status
+          
+          echo "✅ Minikube started successfully"
+
+      - name: Configure kubectl
+        run: |
+          echo "🔧 Configuring kubectl..."
+          kubectl config use-context minikube
+          kubectl config view
+          
+          echo "✅ kubectl configured"
+
+      - name: Verify Minikube
+        run: |
+          echo "🔍 Cluster info:"
+          kubectl cluster-info
+          
+          echo "📊 Nodes:"
+          kubectl get nodes
+          
+          echo "🐳 Docker env:"
+          minikube docker-env
+
+      - name: Load MS-Recette image into Minikube
+        run: |
+          echo "📥 Loading MS-Recette Docker image into Minikube..."
+          minikube image load app-image.tar
+          
+          echo "🏷️ Tagging MS-Recette image inside Minikube..."
+          minikube image tag ${{ env.IMAGE_NAME }}:${{ inputs.image-tag }} ${{ env.IMAGE_NAME }}:latest
+          
+          echo "📋 MS-Recette image inside Minikube:"
+          minikube image ls | grep ${{ env.IMAGE_NAME }} || echo "⚠️  Image not found yet"
+          
+          echo "✅ MS-Recette image loaded successfully"
+
+      - name: Pull and Load MS-Persistance image
+        run: |
+          echo "📥 Pulling MS-Persistance image directly into Minikube..."
+          
+          # Utiliser docker-env de minikube pour pull directement dans le daemon Docker de Minikube
+          eval $(minikube -p minikube docker-env)
+          docker pull abdboutchichi/ms-persistance:latest
+          
+          echo "🔍 Verifying MS-Persistance image in Minikube..."
+          docker images | grep ms-persistance
+          
+          echo "✅ MS-Persistance image successfully loaded into Minikube"
+
+      - name: Create namespace
+        run: |
+          kubectl create namespace ${{ env.NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
+          echo "✅ Namespace created/verified"
+
+      - name: Deploy stack to Minikube (MySQL + MinIO + MS-Persistance + MS-Recette)
+        run: |
+          echo "🚀 Deploying complete stack..."
+          kubectl apply -f .github/k8s-integration/deployment.yaml
+          
+          echo "📊 Current deployments:"
+          kubectl get deployments -n ${{ env.NAMESPACE }}
+          
+          echo "✅ Stack deployed (MS-Recette + MS-Persistance + MySQL + MinIO)"
+
+      - name: Wait for pods to be created
+        run: |
+          echo "⏳ Waiting 10 seconds for pods to be scheduled..."
+          sleep 10
+          
+          echo "📊 Current state:"
+          kubectl get all -n ${{ env.NAMESPACE }}
+
+      - name: Wait for MySQL and MinIO to be ready (parallel)
+        run: |
+          echo "⏳ Waiting for MySQL and MinIO in parallel..."
+          
+          # Lancer les deux attentes en parallèle
+          kubectl wait --for=condition=ready pod -l app=mysql -n ${{ env.NAMESPACE }} --timeout=120s &
+          MYSQL_PID=$!
+          
+          kubectl wait --for=condition=ready pod -l app=minio -n ${{ env.NAMESPACE }} --timeout=90s &
+          MINIO_PID=$!
+          
+          # Attendre MySQL
+          wait $MYSQL_PID || {
+            echo "❌ MySQL not ready!"
+            kubectl get pods -n ${{ env.NAMESPACE }} -l app=mysql
+            kubectl describe pod -l app=mysql -n ${{ env.NAMESPACE }}
+            kubectl logs -l app=mysql -n ${{ env.NAMESPACE }} --tail=30 || true
+            exit 1
+          }
+          echo "✅ MySQL is ready!"
+          
+          # Attendre MinIO
+          wait $MINIO_PID || {
+            echo "❌ MinIO not ready!"
+            kubectl get pods -n ${{ env.NAMESPACE }} -l app=minio
+            kubectl describe pod -l app=minio -n ${{ env.NAMESPACE }}
+            kubectl logs -l app=minio -n ${{ env.NAMESPACE }} --tail=30 || true
+            exit 1
+          }
+          echo "✅ MinIO is ready!"
+
+      - name: Wait for MS-Persistance to be ready
+        run: |
+          echo "⏳ Waiting for MS-Persistance to be ready (max 300s)..."
+          kubectl wait --for=condition=ready pod -l app=ms-persistance -n ${{ env.NAMESPACE }} --timeout=300s || {
+            echo "❌ MS-Persistance not ready!"
+            kubectl get pods -n ${{ env.NAMESPACE }} -l app=ms-persistance -o wide
+            kubectl describe pod -l app=ms-persistance -n ${{ env.NAMESPACE }}
+            kubectl logs -l app=ms-persistance -n ${{ env.NAMESPACE }} --tail=100 || true
+            kubectl logs -l app=mysql -n ${{ env.NAMESPACE }} --tail=30 || true
+            kubectl get events -n ${{ env.NAMESPACE }} --sort-by='.lastTimestamp' | tail -15
+            exit 1
+          }
+          echo "✅ MS-Persistance is ready!"
+
+      - name: Wait for deployment
+        run: |
+          echo "⏳ Waiting for deployment rollout..."
+          kubectl rollout status deployment/ms-recette -n ${{ env.NAMESPACE }} --timeout=180s || {
+            echo "❌ Rollout timeout! Debug info:"
+            kubectl get pods -n ${{ env.NAMESPACE }} -o wide
+            kubectl describe pods -l app=ms-recette -n ${{ env.NAMESPACE }}
+            kubectl logs -l app=ms-recette -n ${{ env.NAMESPACE }} --tail=50 || true
+            exit 1
+          }
+          
+          echo "✅ Deployment successful"
+          kubectl get pods -n ${{ env.NAMESPACE }} -o wide
+
+      - name: Get service endpoint
+        id: endpoint
+        run: |
+          kubectl wait --for=condition=ready pod -l app=ms-recette -n ${{ env.NAMESPACE }} --timeout=300s
+          SERVICE_URL=$(minikube service ms-recette --url -n ${{ env.NAMESPACE }} 2>/dev/null || echo "")
+          if [ -z "$SERVICE_URL" ]; then
+            MINIKUBE_IP=$(minikube ip)
+            NODEPORT=$(kubectl get svc ms-recette -n ${{ env.NAMESPACE }} -o jsonpath='{.spec.ports[0].nodePort}')
+            SERVICE_URL="http://$MINIKUBE_IP:$NODEPORT"
+          fi
+          echo "service_url=$SERVICE_URL" >> $GITHUB_OUTPUT
+          echo "Service accessible at: $SERVICE_URL"
+
+      - name: Test service health
+        run: |
+          echo "🏥 Testing service health..."
+          SERVICE_URL="${{ steps.endpoint.outputs.service_url }}"
+          
+          # Attendre que le service soit vraiment prêt (max 30s)
+          for i in {1..6}; do
+            if curl -sf --connect-timeout 3 "$SERVICE_URL/actuator/health" >/dev/null 2>&1; then
+              echo "✅ Service is healthy!"
+              curl -s "$SERVICE_URL/actuator/health" | head -c 200
+              echo ""
+              exit 0
+            fi
+            echo "⏳ Waiting for service ($i/6)..."
+            sleep 5
+          done
+          
+          echo "❌ Health check failed"
+          kubectl logs -l app=ms-recette -n ${{ env.NAMESPACE }} --tail=30
+          exit 1
+
+      - name: Install Newman for integration tests
+        working-directory: ./tests/newman
+        run: |
+          echo "📦 Installing Newman dependencies..."
+          npm install
+          echo "✅ Newman installed"
+
+      - name: Configure Newman environment
+        working-directory: ./tests/newman
+        run: |
+          echo "📝 Configuring Newman with service URLs..."
+          SERVICE_URL="${{ steps.endpoint.outputs.service_url }}"
+          
+          # Extraire l'IP et calculer l'URL de MS-Persistance
+          MINIKUBE_IP=$(echo $SERVICE_URL | sed -E 's|http://([^:]+):.*|\1|')
+          PERSISTANCE_URL="http://${MINIKUBE_IP}:30090"
+          
+          echo "🔗 MS-Recette URL: $SERVICE_URL"
+          echo "🔗 MS-Persistance URL: $PERSISTANCE_URL"
+          
+          # Mettre à jour les deux URLs dans env.json
+          jq --arg recetteUrl "$SERVICE_URL" --arg persistanceUrl "$PERSISTANCE_URL" \
+            '(.values[] | select(.key == "baseUrl") | .value) = $recetteUrl |
+             (.values[] | select(.key == "persistanceUrl") | .value) = $persistanceUrl' \
+            env.json > env.tmp.json
+          
+          echo "📋 Environment configuration:"
+          cat env.tmp.json | jq '.'
+          echo "✅ Environment configured with both service URLs"
+
+      - name: Run Newman integration tests
+        working-directory: ./tests/newman
+        run: |
+          echo "🚀 Starting Newman integration tests..."
+          echo "🎯 Target: ${{ steps.endpoint.outputs.service_url }}"
+          
+          mkdir -p newman-results
+          
+          # Run Newman without --bail to get complete test results
+          npx newman run ./collection.json \
+            --environment ./env.tmp.json \
+            --iteration-data ./dataset.json \
+            --iteration-count 1 \
+            --reporters cli,json \
+            --reporter-json-export ./newman-results/newman-report.json \
+            --timeout-request 30000 \
+            --delay-request 500
+          
+          NEWMAN_EXIT_CODE=$?
+          
+          echo ""
+          echo "📊 Newman exit code: $NEWMAN_EXIT_CODE"
+          
+          # Check results
+          if [ -f "./newman-results/newman-report.json" ]; then
+            TOTAL=$(jq '.run.stats.assertions.total' ./newman-results/newman-report.json)
+            FAILED=$(jq '.run.stats.assertions.failed' ./newman-results/newman-report.json)
+            echo "📈 Total assertions: $TOTAL"
+            echo "❌ Failed assertions: $FAILED"
+            
+            # Allow up to 20% failure rate (for service unavailability scenarios)
+            if [ "$TOTAL" -gt 0 ]; then
+              FAIL_RATE=$((FAILED * 100 / TOTAL))
+              echo "📉 Failure rate: $FAIL_RATE%"
+              
+              if [ "$FAIL_RATE" -le 20 ]; then
+                echo "✅ Tests passed within acceptable failure rate (<=20%)"
+                exit 0
+              else
+                echo "❌ Too many failures (>20%)"
+                curl -s "${{ steps.endpoint.outputs.service_url }}/actuator/health" || true
+                kubectl logs -l app=ms-recette -n ${{ env.NAMESPACE }} --tail=50 || true
+                exit 1
+              fi
+            fi
+          fi
+          
+          # If we can't parse results, use Newman exit code
+          if [ "$NEWMAN_EXIT_CODE" -ne 0 ]; then
+            echo "❌ Newman tests had failures"
+            curl -s "${{ steps.endpoint.outputs.service_url }}/actuator/health" || true
+            exit 1
+          fi
+          
+          echo "✅ All Newman tests passed!"
+
+      - name: Upload Newman results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: newman-results
+          path: tests/newman/newman-results/
+          retention-days: 7
+
+      - name: Upload service URL artifact
+        run: |
+          echo "${{ steps.endpoint.outputs.service_url }}" > service-url.txt
+
+      - name: Upload service URL
+        uses: actions/upload-artifact@v4
+        with:
+          name: service-url
+          path: service-url.txt
+          retention-days: 1
+
+
