@@ -81,34 +81,23 @@ jobs:
 
       - name: Pull and Load MS-Persistance image
         run: |
-          echo "📥 Pulling MS-Persistance image from Docker Hub..."
+          echo "📥 Pulling MS-Persistance image directly into Minikube..."
+          
+          # Utiliser docker-env de minikube pour pull directement dans le daemon Docker de Minikube
+          eval $(minikube -p minikube docker-env)
           docker pull abdboutchichi/ms-persistance:latest
           
-          echo "💾 Saving MS-Persistance image to tar file..."
-          docker save abdboutchichi/ms-persistance:latest -o ms-persistance.tar
-          
-          echo "📦 Loading MS-Persistance into Minikube..."
-          # Use minikube image load command
-          minikube image load ms-persistance.tar || {
-            echo "⚠️ minikube image load failed, trying docker-env method..."
-            eval $(minikube -p minikube docker-env)
-            docker load -i ms-persistance.tar
-          }
-          
           echo "🔍 Verifying MS-Persistance image in Minikube..."
-          minikube image ls | grep ms-persistance
+          docker images | grep ms-persistance
           
           echo "✅ MS-Persistance image successfully loaded into Minikube"
-          
-          # Cleanup
-          rm -f ms-persistance.tar
 
       - name: Create namespace
         run: |
           kubectl create namespace ${{ env.NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
           echo "✅ Namespace created/verified"
 
-      - name: Deploy stack to Minikube (MySQL + MS-Persistance + MS-Recette)
+      - name: Deploy stack to Minikube (MySQL + MinIO + MS-Persistance + MS-Recette)
         run: |
           echo "🚀 Deploying complete stack..."
           kubectl apply -f .github/k8s-integration/deployment.yaml
@@ -116,82 +105,68 @@ jobs:
           echo "📊 Current deployments:"
           kubectl get deployments -n ${{ env.NAMESPACE }}
           
-          echo "✅ Stack deployed (MS-Recette + MS-Persistance + MySQL)"
+          echo "✅ Stack deployed (MS-Recette + MS-Persistance + MySQL + MinIO)"
 
       - name: Wait for pods to be created
         run: |
-          echo "⏳ Waiting 20 seconds for pods to be scheduled..."
-          sleep 20
+          echo "⏳ Waiting 10 seconds for pods to be scheduled..."
+          sleep 10
           
           echo "📊 Current state:"
           kubectl get all -n ${{ env.NAMESPACE }}
 
-      - name: Wait for MySQL to be ready
+      - name: Wait for MySQL and MinIO to be ready (parallel)
         run: |
-          echo "⏳ Waiting for MySQL to be ready (max 180s)..."
-          kubectl wait --for=condition=ready pod -l app=mysql -n ${{ env.NAMESPACE }} --timeout=180s || {
+          echo "⏳ Waiting for MySQL and MinIO in parallel..."
+          
+          # Lancer les deux attentes en parallèle
+          kubectl wait --for=condition=ready pod -l app=mysql -n ${{ env.NAMESPACE }} --timeout=120s &
+          MYSQL_PID=$!
+          
+          kubectl wait --for=condition=ready pod -l app=minio -n ${{ env.NAMESPACE }} --timeout=90s &
+          MINIO_PID=$!
+          
+          # Attendre MySQL
+          wait $MYSQL_PID || {
             echo "❌ MySQL not ready!"
             kubectl get pods -n ${{ env.NAMESPACE }} -l app=mysql
             kubectl describe pod -l app=mysql -n ${{ env.NAMESPACE }}
-            kubectl logs -l app=mysql -n ${{ env.NAMESPACE }} --tail=50 || true
+            kubectl logs -l app=mysql -n ${{ env.NAMESPACE }} --tail=30 || true
             exit 1
           }
           echo "✅ MySQL is ready!"
+          
+          # Attendre MinIO
+          wait $MINIO_PID || {
+            echo "❌ MinIO not ready!"
+            kubectl get pods -n ${{ env.NAMESPACE }} -l app=minio
+            kubectl describe pod -l app=minio -n ${{ env.NAMESPACE }}
+            kubectl logs -l app=minio -n ${{ env.NAMESPACE }} --tail=30 || true
+            exit 1
+          }
+          echo "✅ MinIO is ready!"
 
       - name: Wait for MS-Persistance to be ready
         run: |
-          echo "⏳ Waiting for MS-Persistance to be ready (max 300s)..."
-          kubectl wait --for=condition=ready pod -l app=ms-persistance -n ${{ env.NAMESPACE }} --timeout=300s || {
+          echo "⏳ Waiting for MS-Persistance to be ready (max 180s)..."
+          kubectl wait --for=condition=ready pod -l app=ms-persistance -n ${{ env.NAMESPACE }} --timeout=180s || {
             echo "❌ MS-Persistance not ready!"
-            echo ""
-            echo "📊 Pod status:"
             kubectl get pods -n ${{ env.NAMESPACE }} -l app=ms-persistance -o wide
-            echo ""
-            echo "📋 Pod description:"
             kubectl describe pod -l app=ms-persistance -n ${{ env.NAMESPACE }}
-            echo ""
-            echo "📝 MS-Persistance logs:"
-            kubectl logs -l app=ms-persistance -n ${{ env.NAMESPACE }} --tail=100 || true
-            echo ""
-            echo "📝 MySQL logs:"
-            kubectl logs -l app=mysql -n ${{ env.NAMESPACE }} --tail=50 || true
-            echo ""
-            echo "🔍 Recent events:"
-            kubectl get events -n ${{ env.NAMESPACE }} --sort-by='.lastTimestamp' | tail -20
+            kubectl logs -l app=ms-persistance -n ${{ env.NAMESPACE }} --tail=50 || true
+            kubectl logs -l app=mysql -n ${{ env.NAMESPACE }} --tail=30 || true
+            kubectl get events -n ${{ env.NAMESPACE }} --sort-by='.lastTimestamp' | tail -15
             exit 1
           }
           echo "✅ MS-Persistance is ready!"
-          
-          # Vérifier la santé du service
-          echo "🏥 Checking MS-Persistance health endpoint..."
-          POD_NAME=$(kubectl get pods -n ${{ env.NAMESPACE }} -l app=ms-persistance -o jsonpath='{.items[0].metadata.name}')
-          kubectl exec -n ${{ env.NAMESPACE }} $POD_NAME -- curl -f http://localhost:8090/actuator/health || {
-            echo "⚠️ Health endpoint not responding correctly"
-            kubectl logs -n ${{ env.NAMESPACE }} $POD_NAME --tail=50
-          }
-          echo "✅ MS-Persistance health check passed!"
-
-      - name: Debug pods before rollout
-        if: always()
-        run: |
-          echo "🔍 Current pods status:"
-          kubectl get pods -n ${{ env.NAMESPACE }} -o wide
-          
-          echo ""
-          echo "🔍 ms-recette pods details:"
-          kubectl describe pods -l app=ms-recette -n ${{ env.NAMESPACE }} || echo "No ms-recette pods yet"
-          
-          echo ""
-          echo "🔍 Recent events:"
-          kubectl get events -n ${{ env.NAMESPACE }} --sort-by='.lastTimestamp' --field-selector type!=Normal | tail -20 || echo "No error events"
 
       - name: Wait for deployment
         run: |
           echo "⏳ Waiting for deployment rollout..."
-          kubectl rollout status deployment/ms-recette -n ${{ env.NAMESPACE }} --timeout=300s || {
-            echo "❌ Rollout timeout! Gathering debug info..."
+          kubectl rollout status deployment/ms-recette -n ${{ env.NAMESPACE }} --timeout=180s || {
+            echo "❌ Rollout timeout! Debug info:"
             kubectl get pods -n ${{ env.NAMESPACE }} -o wide
-            kubectl describe pods -n ${{ env.NAMESPACE }}
+            kubectl describe pods -l app=ms-recette -n ${{ env.NAMESPACE }}
             kubectl logs -l app=ms-recette -n ${{ env.NAMESPACE }} --tail=50 || true
             exit 1
           }
@@ -217,26 +192,21 @@ jobs:
           echo "🏥 Testing service health..."
           SERVICE_URL="${{ steps.endpoint.outputs.service_url }}"
           
-          # Attendre que le service soit vraiment prêt
-          for i in {1..12}; do
-            if curl -f --connect-timeout 5 "$SERVICE_URL/actuator/health" 2>/dev/null; then
+          # Attendre que le service soit vraiment prêt (max 30s)
+          for i in {1..6}; do
+            if curl -sf --connect-timeout 3 "$SERVICE_URL/actuator/health" >/dev/null 2>&1; then
               echo "✅ Service is healthy!"
-              break
+              curl -s "$SERVICE_URL/actuator/health" | head -c 200
+              echo ""
+              exit 0
             fi
-            echo "⏳ Waiting for service to be fully ready ($i/12)..."
+            echo "⏳ Waiting for service ($i/6)..."
             sleep 5
           done
           
-          # Test final
-          curl -f "$SERVICE_URL/actuator/health" || \
-          curl -f "$SERVICE_URL/health" || \
-          curl -f "$SERVICE_URL/" || {
-            echo "❌ Health check failed"
-            kubectl logs -l app=ms-recette -n ${{ env.NAMESPACE }} --tail=50
-            exit 1
-          }
-          
-          echo "✅ Service is healthy and ready for tests"
+          echo "❌ Health check failed"
+          kubectl logs -l app=ms-recette -n ${{ env.NAMESPACE }} --tail=30
+          exit 1
 
       - name: Install Newman for integration tests
         working-directory: ./tests/newman
