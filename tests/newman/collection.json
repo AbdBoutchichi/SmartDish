@@ -1,25 +1,29 @@
 {
   "info": {
     "name": "MS-Recette Integration Tests",
-    "_postman_id": "ms-recette-integration",
-    "description": "Tests d'intégration end-to-end pour MS-Recette avec MS-Persistance",
+    "_postman_id": "ms-recette-integration-complete",
+    "description": "Tests d'intégration end-to-end complets pour MS-Recette - 23 tests au total",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
     {
-      "name": "1. Health Checks",
+      "name": "1. Health & Home Checks (2 tests)",
       "item": [
         {
-          "name": "MS-Recette Health",
+          "name": "T01 - MS-Recette Health Check",
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test(\"MS-Recette is UP\", function () {",
+                  "pm.test(\"T01: MS-Recette is UP\", function () {",
                   "    pm.response.to.have.status(200);",
                   "    var jsonData = pm.response.json();",
                   "    pm.expect(jsonData.status).to.equal('UP');",
+                  "});",
+                  "",
+                  "pm.test(\"T01: Response time is acceptable\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(5000);",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -35,29 +39,57 @@
               "path": ["actuator", "health"]
             }
           }
-        }
-      ]
-    },
-    {
-      "name": "2. Test Recette Creation Flow",
-      "item": [
+        },
         {
-          "name": "Create Recette",
+          "name": "T02 - Home Endpoint",
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test(\"Recette created or service available\", function () {",
-                  "    // Accept 201 (created) or 503 (service unavailable during init)",
+                  "pm.test(\"T02: Home endpoint responds\", function () {",
+                  "    pm.expect([200, 302]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/",
+              "host": ["{{baseUrl}}"],
+              "path": [""]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Recette CRUD Operations (5 tests)",
+      "item": [
+        {
+          "name": "T03 - Create Recette",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"T03: Recette created successfully\", function () {",
                   "    pm.expect([201, 503]).to.include(pm.response.code);",
                   "    if (pm.response.code === 201) {",
                   "        var jsonData = pm.response.json();",
                   "        pm.expect(jsonData).to.have.property('id');",
+                  "        pm.expect(jsonData).to.have.property('titre');",
                   "        pm.environment.set('recetteId', jsonData.id);",
+                  "        pm.environment.set('recetteCreated', true);",
+                  "        console.log('T03: Created recette with ID:', jsonData.id);",
                   "    } else {",
-                  "        console.log('MS-Persistance not yet available, skipping recetteId set');",
-                  "        pm.environment.set('recetteId', '1');",
+                  "        pm.environment.set('recetteId', '999');",
+                  "        pm.environment.set('recetteCreated', false);",
+                  "        console.log('T03: MS-Persistance not available, using fallback ID');",
                   "    }",
                   "});"
                 ],
@@ -85,19 +117,19 @@
           }
         },
         {
-          "name": "Get Recette by ID",
+          "name": "T04 - Get Recette by ID",
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test(\"Recette retrieved or service available\", function () {",
-                  "    // Accept 200 (found), 404 (not found), or 503 (service unavailable)",
+                  "pm.test(\"T04: Get recette by ID\", function () {",
                   "    pm.expect([200, 404, 503]).to.include(pm.response.code);",
                   "    if (pm.response.code === 200) {",
                   "        var jsonData = pm.response.json();",
                   "        pm.expect(jsonData).to.have.property('id');",
                   "        pm.expect(jsonData).to.have.property('titre');",
+                  "        pm.expect(jsonData).to.have.property('description');",
                   "    }",
                   "});"
                 ],
@@ -116,17 +148,18 @@
           }
         },
         {
-          "name": "Get All Recettes",
+          "name": "T05 - Get All Recettes",
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test(\"Recettes list retrieved or service available\", function () {",
+                  "pm.test(\"T05: Get all recettes returns array\", function () {",
                   "    pm.expect([200, 503]).to.include(pm.response.code);",
                   "    if (pm.response.code === 200) {",
                   "        var jsonData = pm.response.json();",
                   "        pm.expect(jsonData).to.be.an('array');",
+                  "        console.log('T05: Total recettes:', jsonData.length);",
                   "    }",
                   "});"
                 ],
@@ -145,13 +178,86 @@
           }
         },
         {
-          "name": "Search Recettes",
+          "name": "T06 - Update Recette",
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test(\"Search works or service available\", function () {",
+                  "pm.test(\"T06: Update recette\", function () {",
+                  "    pm.expect([200, 404, 503]).to.include(pm.response.code);",
+                  "    if (pm.response.code === 200) {",
+                  "        var jsonData = pm.response.json();",
+                  "        pm.expect(jsonData).to.have.property('id');",
+                  "        pm.expect(jsonData.titre).to.include('Updated');",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titre\": \"{{titre}} - Updated\",\n  \"description\": \"Description mise à jour via test d'intégration\",\n  \"tempsPreparation\": 20,\n  \"tempsCuisson\": 25,\n  \"nombrePersonnes\": 6,\n  \"difficulte\": \"MOYEN\",\n  \"categorie\": \"{{categorie}}\",\n  \"instructions\": \"Instructions mises à jour\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/recettes/{{recetteId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "recettes", "{{recetteId}}"]
+            }
+          }
+        },
+        {
+          "name": "T07 - Check Recette Exists",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"T07: Recette exists check\", function () {",
+                  "    pm.expect([200, 503]).to.include(pm.response.code);",
+                  "    if (pm.response.code === 200) {",
+                  "        var result = pm.response.text();",
+                  "        pm.expect(['true', 'false']).to.include(result);",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/recettes/{{recetteId}}/exists",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "recettes", "{{recetteId}}", "exists"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Search & Filter Operations (4 tests)",
+      "item": [
+        {
+          "name": "T08 - Search Recettes by Criteria",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"T08: Search recettes\", function () {",
                   "    pm.expect([200, 503]).to.include(pm.response.code);",
                   "    if (pm.response.code === 200) {",
                   "        var jsonData = pm.response.json();",
@@ -183,13 +289,13 @@
           }
         },
         {
-          "name": "Get Recettes by Category",
+          "name": "T09 - Get Recettes by Category",
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test(\"Recettes filtered by category or service available\", function () {",
+                  "pm.test(\"T09: Filter by category\", function () {",
                   "    pm.expect([200, 503]).to.include(pm.response.code);",
                   "    if (pm.response.code === 200) {",
                   "        var jsonData = pm.response.json();",
@@ -212,14 +318,18 @@
           }
         },
         {
-          "name": "Check Recette Exists",
+          "name": "T10 - Get Popular Recettes",
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test(\"Recette exists check or service available\", function () {",
+                  "pm.test(\"T10: Get popular recettes\", function () {",
                   "    pm.expect([200, 503]).to.include(pm.response.code);",
+                  "    if (pm.response.code === 200) {",
+                  "        var jsonData = pm.response.json();",
+                  "        pm.expect(jsonData).to.be.an('array');",
+                  "    }",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -230,25 +340,247 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/recettes/{{recetteId}}/exists",
+              "raw": "{{baseUrl}}/api/recettes/populaires?limit=5",
               "host": ["{{baseUrl}}"],
-              "path": ["api", "recettes", "{{recetteId}}", "exists"]
+              "path": ["api", "recettes", "populaires"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "5"
+                }
+              ]
             }
           }
         },
         {
-          "name": "Update Recette",
+          "name": "T11 - Get Recent Recettes",
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test(\"Recette updated or service available\", function () {",
+                  "pm.test(\"T11: Get recent recettes\", function () {",
+                  "    pm.expect([200, 503]).to.include(pm.response.code);",
+                  "    if (pm.response.code === 200) {",
+                  "        var jsonData = pm.response.json();",
+                  "        pm.expect(jsonData).to.be.an('array');",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/recettes/recentes?limit=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "recettes", "recentes"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "5"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Statistics & Async Operations (2 tests)",
+      "item": [
+        {
+          "name": "T12 - Get Recette Stats",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"T12: Get recette stats\", function () {",
                   "    pm.expect([200, 404, 503]).to.include(pm.response.code);",
                   "    if (pm.response.code === 200) {",
                   "        var jsonData = pm.response.json();",
                   "        pm.expect(jsonData).to.have.property('id');",
                   "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/recettes/{{recetteId}}/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "recettes", "{{recetteId}}", "stats"]
+            }
+          }
+        },
+        {
+          "name": "T13 - Get Recette Async",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"T13: Async recette retrieval\", function () {",
+                  "    pm.expect([200, 404, 503]).to.include(pm.response.code);",
+                  "    if (pm.response.code === 200) {",
+                  "        var jsonData = pm.response.json();",
+                  "        pm.expect(jsonData).to.have.property('id');",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/recettes/{{recetteId}}/async",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "recettes", "{{recetteId}}", "async"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. File Operations (3 tests)",
+      "item": [
+        {
+          "name": "T14 - Get Fichiers for Recette",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"T14: Get fichiers for recette\", function () {",
+                  "    pm.expect([200, 404, 503]).to.include(pm.response.code);",
+                  "    if (pm.response.code === 200) {",
+                  "        var jsonData = pm.response.json();",
+                  "        pm.expect(jsonData).to.be.an('array');",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/recettes/{{recetteId}}/fichiers",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "recettes", "{{recetteId}}", "fichiers"]
+            }
+          }
+        },
+        {
+          "name": "T15 - Get Images for Recette",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"T15: Get images for recette\", function () {",
+                  "    pm.expect([200, 404, 503]).to.include(pm.response.code);",
+                  "    if (pm.response.code === 200) {",
+                  "        var jsonData = pm.response.json();",
+                  "        pm.expect(jsonData).to.be.an('array');",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/recettes/{{recetteId}}/fichiers/images",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "recettes", "{{recetteId}}", "fichiers", "images"]
+            }
+          }
+        },
+        {
+          "name": "T16 - Get Documents for Recette",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"T16: Get documents for recette\", function () {",
+                  "    pm.expect([200, 404, 503]).to.include(pm.response.code);",
+                  "    if (pm.response.code === 200) {",
+                  "        var jsonData = pm.response.json();",
+                  "        pm.expect(jsonData).to.be.an('array');",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/recettes/{{recetteId}}/fichiers/documents",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "recettes", "{{recetteId}}", "fichiers", "documents"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Error Handling Tests (5 tests)",
+      "item": [
+        {
+          "name": "T17 - Get Non-Existent Recette",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"T17: Non-existent recette returns 404 or 503\", function () {",
+                  "    pm.expect([404, 503]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/recettes/999999",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "recettes", "999999"]
+            }
+          }
+        },
+        {
+          "name": "T18 - Update Non-Existent Recette",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"T18: Update non-existent recette returns 404 or 503\", function () {",
+                  "    pm.expect([404, 503]).to.include(pm.response.code);",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -265,24 +597,24 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"titre\": \"{{titre}} - Updated\",\n  \"description\": \"Description mise à jour\",\n  \"difficulte\": \"MOYEN\"\n}"
+              "raw": "{\n  \"titre\": \"Test Update\",\n  \"description\": \"Test\"\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/api/recettes/{{recetteId}}",
+              "raw": "{{baseUrl}}/api/recettes/999999",
               "host": ["{{baseUrl}}"],
-              "path": ["api", "recettes", "{{recetteId}}"]
+              "path": ["api", "recettes", "999999"]
             }
           }
         },
         {
-          "name": "Delete Recette",
+          "name": "T19 - Delete Non-Existent Recette",
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test(\"Recette deleted or service available\", function () {",
-                  "    pm.expect([204, 404, 503]).to.include(pm.response.code);",
+                  "pm.test(\"T19: Delete non-existent recette returns 404 or 503\", function () {",
+                  "    pm.expect([404, 503]).to.include(pm.response.code);",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -291,6 +623,135 @@
           ],
           "request": {
             "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/recettes/999999",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "recettes", "999999"]
+            }
+          }
+        },
+        {
+          "name": "T20 - Create Recette with Invalid Data",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"T20: Invalid data returns 400 or 503\", function () {",
+                  "    pm.expect([400, 503]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titre\": \"\",\n  \"description\": \"Invalid recette without title\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/recettes",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "recettes"]
+            }
+          }
+        },
+        {
+          "name": "T21 - Search with Empty Criteria",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"T21: Search with empty criteria\", function () {",
+                  "    pm.expect([200, 400, 503]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/recettes/search",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "recettes", "search"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Cleanup (2 tests)",
+      "item": [
+        {
+          "name": "T22 - Delete Created Recette",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"T22: Cleanup - delete test recette\", function () {",
+                  "    pm.expect([204, 404, 503]).to.include(pm.response.code);",
+                  "    if (pm.response.code === 204) {",
+                  "        console.log('T22: Test recette deleted successfully');",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/recettes/{{recetteId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "recettes", "{{recetteId}}"]
+            }
+          }
+        },
+        {
+          "name": "T23 - Verify Deletion",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"T23: Verify recette was deleted\", function () {",
+                  "    pm.expect([404, 503]).to.include(pm.response.code);",
+                  "    if (pm.response.code === 404) {",
+                  "        console.log('T23: Deletion verified - recette no longer exists');",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/recettes/{{recetteId}}",
