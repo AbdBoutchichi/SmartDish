@@ -219,15 +219,30 @@ spec:
           value: "health,info,metrics"
         - name: ACTUATOR_HEALTH_DETAILS
           value: "always"
-        # MinIO Configuration
+        # MinIO Configuration via SPRING_APPLICATION_JSON (highest priority)
+        - name: SPRING_APPLICATION_JSON
+          value: '{"minio":{"url":"http://minio:9000","endpoint":"http://minio:9000","access-key":"minioadmin","secret-key":"minioadmin","bucket-name":"recettes","bucket":"recettes"}}'
+        # MinIO Configuration - All possible formats as backup
         - name: MINIO_URL
+          value: "http://minio:9000"
+        - name: MINIO_ENDPOINT
           value: "http://minio:9000"
         - name: MINIO_ROOT_USER
           value: "minioadmin"
         - name: MINIO_ROOT_PASSWORD
           value: "minioadmin"
+        - name: MINIO_ACCESS_KEY
+          value: "minioadmin"
+        - name: MINIO_SECRET_KEY
+          value: "minioadmin"
         - name: MINIO_BUCKET_NAME
           value: "recettes"
+        - name: MINIO_BUCKET
+          value: "recettes"
+        - name: MINIO_HOST
+          value: "minio"
+        - name: MINIO_PORT
+          value: "9000"
         ports:
         - containerPort: 8090
         resources:
