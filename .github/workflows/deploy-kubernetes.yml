@@ -38,15 +38,17 @@ jobs:
           curl -sLO https://storage.googleapis.com/minikube/releases/v1.32.0/minikube-linux-amd64
           sudo install minikube-linux-amd64 /usr/local/bin/minikube && rm minikube-linux-amd64
           
-          # Démarrage optimisé - moins de mémoire, désactivation des addons inutiles
-          minikube start --driver=docker --memory=3072 --cpus=2 --kubernetes-version=v1.28.0 \
-            --extra-config=kubeadm.skip-phases=addon/kube-proxy \
-            --disable-metrics
+          # Démarrage avec DNS activé (sans skip-phases pour garder kube-proxy et DNS)
+          minikube start --driver=docker --memory=3072 --cpus=2 --kubernetes-version=v1.28.0
           
           # Configuration kubectl
           kubectl config use-context minikube
           
-          # Charger l'image pendant que le cluster démarre
+          # Vérifier que CoreDNS est prêt
+          echo "⏳ Waiting for CoreDNS to be ready..."
+          kubectl wait --for=condition=ready pod -l k8s-app=kube-dns -n kube-system --timeout=90s
+          
+          # Charger l'image
           echo "📥 Loading Docker image..."
           minikube image load app-image.tar
           minikube image tag ${{ env.IMAGE_NAME }}:${{ inputs.image-tag }} ${{ env.IMAGE_NAME }}:latest
