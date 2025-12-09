@@ -66,15 +66,37 @@ jobs:
       - name: Wait for dependencies (MySQL & MinIO)
         run: |
           echo "⏳ Waiting for MySQL and MinIO..."
+          
+          # Attendre un peu que les pods soient créés
+          sleep 10
+          
+          # Attendre MySQL (timeout 90s)
           kubectl wait --for=condition=ready pod -l app=mysql -n ${{ env.NAMESPACE }} --timeout=90s &
           MYSQL_PID=$!
-          kubectl wait --for=condition=ready pod -l app=minio -n ${{ env.NAMESPACE }} --timeout=90s &
+          
+          # Attendre MinIO (timeout 120s car PVC + image pull peuvent être lents)
+          kubectl wait --for=condition=ready pod -l app=minio -n ${{ env.NAMESPACE }} --timeout=120s &
           MINIO_PID=$!
           
-          wait $MYSQL_PID || { echo "❌ MySQL timeout"; kubectl logs -l app=mysql -n ${{ env.NAMESPACE }} --tail=30; exit 1; }
-          wait $MINIO_PID || { echo "❌ MinIO timeout"; kubectl logs -l app=minio -n ${{ env.NAMESPACE }} --tail=30; exit 1; }
+          # Attendre MySQL
+          wait $MYSQL_PID || { 
+            echo "❌ MySQL timeout"
+            kubectl describe pod -l app=mysql -n ${{ env.NAMESPACE }}
+            kubectl logs -l app=mysql -n ${{ env.NAMESPACE }} --tail=30
+            exit 1
+          }
+          echo "✅ MySQL ready"
           
-          echo "✅ Dependencies ready"
+          # Attendre MinIO
+          wait $MINIO_PID || { 
+            echo "❌ MinIO timeout"
+            kubectl describe pod -l app=minio -n ${{ env.NAMESPACE }}
+            kubectl logs -l app=minio -n ${{ env.NAMESPACE }} --tail=30
+            exit 1
+          }
+          echo "✅ MinIO ready"
+          
+          echo "✅ All dependencies ready"
 
       - name: Wait for application deployment
         run: |
