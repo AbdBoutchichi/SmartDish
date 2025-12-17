@@ -1,0 +1,168 @@
+# MySQL Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:8.0
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: "password"
+        - name: MYSQL_DATABASE
+          value: "soa_db"
+        ports:
+        - containerPort: 3306
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          tcpSocket:
+            port: 3306
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 5
+        readinessProbe:
+          exec:
+            command:
+            - mysqladmin
+            - ping
+            - -h
+            - "127.0.0.1"
+            - --protocol=TCP
+            - -uroot
+            - -ppassword
+          initialDelaySeconds: 15
+          periodSeconds: 3
+          timeoutSeconds: 2
+          failureThreshold: 15
+---
+# MySQL Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+spec:
+  selector:
+    app: mysql
+  ports:
+  - port: 3306
+    targetPort: 3306
+  type: ClusterIP
+---
+# MS-Persistance Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ms-persistance
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ms-persistance
+  template:
+    metadata:
+      labels:
+        app: ms-persistance
+    spec:
+      initContainers:
+      - name: wait-for-mysql
+        image: busybox:1.36
+        command: ['sh', '-c']
+        args:
+        - |
+          echo "⏳ Waiting for MySQL to be ready..."
+          until nc -z mysql 3306; do
+            echo "MySQL not ready yet, waiting 3s..."
+            sleep 3
+          done
+          echo "✅ MySQL is ready!"
+          sleep 5
+      containers:
+      - name: ms-persistance
+        image: abdboutchichi/ms-persistance:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: SPRING_DATASOURCE_URL
+          value: "jdbc:mysql://mysql:3306/soa_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true"
+        - name: SPRING_DATASOURCE_USERNAME
+          value: "root"
+        - name: SPRING_DATASOURCE_PASSWORD
+          value: "password"
+        - name: SPRING_JPA_HIBERNATE_DDL_AUTO
+          value: "update"
+        - name: SPRING_JPA_SHOW_SQL
+          value: "true"
+        - name: SPRING_JPA_FORMAT_SQL
+          value: "true"
+        - name: SPRING_JPA_USE_SQL_COMMENTS
+          value: "false"
+        - name: SERVER_PORT
+          value: "8080"
+        - name: LOG_LEVEL_ROOT
+          value: "INFO"
+        - name: LOG_LEVEL_JDBC
+          value: "DEBUG"
+        - name: LOG_LEVEL_HIBERNATE_SQL
+          value: "INFO"
+        - name: LOG_LEVEL_HIBERNATE_BINDER
+          value: "INFO"
+        - name: ACTUATOR_ENDPOINTS
+          value: "health,info,metrics"
+        - name: ACTUATOR_HEALTH_DETAILS
+          value: "always"
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 20
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 120
+          periodSeconds: 15
+          timeoutSeconds: 5
+          failureThreshold: 5
+---
+# MS-Persistance Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: ms-persistance
+spec:
+  selector:
+    app: ms-persistance
+  ports:
+  - port: 8080
+    targetPort: 8080
+    nodePort: 30090
+  type: NodePort
+

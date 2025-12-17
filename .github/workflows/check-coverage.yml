@@ -1,0 +1,71 @@
+name: Check Coverage
+
+on:
+  workflow_call:
+
+jobs:
+  check-coverage:
+    name: Check Code Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Run tests and generate JaCoCo report
+        run: |
+          set -e
+          echo "Running tests and generating coverage report..."
+          mvn -B clean test jacoco:report
+
+      - name: Extract and display exact coverage
+        shell: bash
+        run: |
+          set -e
+          echo "Extracting coverage from report..."
+          REPORT_XML="target/site/jacoco/jacoco.xml"
+          if [ -f "$REPORT_XML" ]; then
+            # Aggregate LINE counters from JaCoCo XML without Python
+            LINE_ROWS=$(grep '<counter type="LINE"' "$REPORT_XML" || true)
+            if [ -z "$LINE_ROWS" ]; then
+              echo "No LINE counters found in $REPORT_XML"
+              exit 1
+            fi
+            COVERED=$(echo "$LINE_ROWS" | grep -o 'covered="[0-9]\+"' | grep -o '[0-9]\+' | paste -sd+ - | bc)
+            MISSED=$(echo "$LINE_ROWS" | grep -o 'missed="[0-9]\+"'  | grep -o '[0-9]\+' | paste -sd+ - | bc)
+            TOTAL=$(echo "$COVERED + $MISSED" | bc)
+            if [ "$TOTAL" -eq 0 ]; then
+              PCT="0"
+            else
+              PCT=$(echo "scale=2; ($COVERED * 100) / $TOTAL" | bc)
+            fi
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "JACOCO COVERAGE SUMMARY"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "Line Coverage: ${PCT}%"
+            echo "Required Minimum: 60%"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            # Compare with threshold
+            BELOW=$(echo "$PCT < 60" | bc)
+            if [ "$BELOW" -eq 1 ]; then
+              echo "Coverage ${PCT}% is below minimum 60%"
+              exit 1
+            fi
+            echo "Coverage ${PCT}% meets minimum requirement"
+          else
+            echo "Coverage XML report not found: $REPORT_XML"
+            exit 1
+          fi
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: target/site/jacoco/
+          retention-days: 7
