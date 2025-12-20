@@ -107,7 +107,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"nom\": \"{{nom}}\",\n  \"prenom\": \"{{prenom}}\",\n  \"role\": \"{{role}}\"\n}"
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"motDePasse\": \"{{password}}\",\n  \"nom\": \"{{nom}}\",\n  \"prenom\": \"{{prenom}}\",\n  \"role\": \"{{role}}\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/utilisateurs/register",
@@ -183,7 +183,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"motDePasse\": \"{{password}}\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/utilisateurs/login",
@@ -351,6 +351,79 @@
       "name": "6. User Deletion",
       "item": [
         {
+          "name": "Create Admin User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Admin user created\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('adminId', jsonData.id);",
+                  "    pm.collectionVariables.set('adminEmail', jsonData.email);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin-{{$randomInt}}@example.com\",\n  \"motDePasse\": \"AdminPass123!\",\n  \"nom\": \"Admin\",\n  \"prenom\": \"Test\",\n  \"role\": \"ADMIN\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/utilisateurs/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "utilisateurs", "register"]
+            }
+          }
+        },
+        {
+          "name": "Login as Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Admin login successful\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('adminToken', jsonData.token);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"motDePasse\": \"AdminPass123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/utilisateurs/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "utilisateurs", "login"]
+            }
+          }
+        },
+        {
           "name": "Delete User",
           "event": [
             {
@@ -375,7 +448,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{authToken}}"
+                "value": "Bearer {{adminToken}}"
               }
             ],
             "url": {
@@ -424,6 +497,18 @@
     },
     {
       "key": "authToken",
+      "value": ""
+    },
+    {
+      "key": "adminId",
+      "value": ""
+    },
+    {
+      "key": "adminEmail",
+      "value": ""
+    },
+    {
+      "key": "adminToken",
       "value": ""
     }
   ]

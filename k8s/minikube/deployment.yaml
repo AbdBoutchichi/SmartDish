@@ -37,6 +37,8 @@ spec:
         envFrom:
         - configMapRef:
             name: ms-utilisateur-config
+        - secretRef:
+            name: ms-utilisateur-secret
         livenessProbe:
           httpGet:
             path: /actuator/health

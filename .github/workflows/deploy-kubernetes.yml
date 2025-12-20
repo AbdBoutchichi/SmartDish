@@ -97,12 +97,15 @@ jobs:
         run: |
           echo "Deploying manifests..."
           kubectl apply -f k8s/minikube/persistance.yaml -n ${{ env.NAMESPACE }}
-          kubectl apply -f k8s/minikube/ -n ${{ env.NAMESPACE }}
+          kubectl apply -f k8s/minikube/secret.yaml -n ${{ env.NAMESPACE }}
+          kubectl apply -f k8s/minikube/configmap.yaml -n ${{ env.NAMESPACE }}
+          kubectl apply -f k8s/minikube/deployment.yaml -n ${{ env.NAMESPACE }}
+          kubectl apply -f k8s/minikube/service.yaml -n ${{ env.NAMESPACE }}
           
           echo "Current deployments:"
           kubectl get deployments -n ${{ env.NAMESPACE }}
 
-          echo "Manifests applied (MySQL + ms-persistance + ms-utilisateur)"
+          echo "Manifests applied (MinIO + MySQL + ms-persistance + ms-utilisateur)"
 
       - name: Wait for pods to be created
         run: |

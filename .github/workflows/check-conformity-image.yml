@@ -28,6 +28,20 @@ jobs:
         run: |
           echo "📥 Loading Docker image..."
           docker load -i app-image.tar
+          echo "Images loaded:"
+          docker images | grep ${{ env.IMAGE_NAME }} || docker images
+          
+          # Tag the image if needed
+          if ! docker images | grep -q "${{ env.IMAGE_NAME }}.*${{ inputs.image-tag }}"; then
+            echo "Tagging image..."
+            LOADED_IMAGE=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep ${{ env.IMAGE_NAME }} | head -n1)
+            if [ -n "$LOADED_IMAGE" ]; then
+              docker tag $LOADED_IMAGE ${{ env.IMAGE_NAME }}:${{ inputs.image-tag }}
+            fi
+          fi
+          
+          echo "Final images:"
+          docker images | grep ${{ env.IMAGE_NAME }}
 
       - name: Inspect Docker image
         run: |
