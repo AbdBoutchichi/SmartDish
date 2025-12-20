@@ -8,7 +8,7 @@ on:
         type: string
 
 env:
-  IMAGE_NAME: univ-soa
+  IMAGE_NAME: ms-utilisateur
 
 jobs:
   check-conformity:

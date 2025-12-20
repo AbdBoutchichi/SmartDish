@@ -101,7 +101,7 @@ jobs:
           
           echo "Current deployments:"
           kubectl get deployments -n ${{ env.NAMESPACE }}
-          
+
           echo "Manifests applied (MySQL + ms-persistance + ms-utilisateur)"
 
       - name: Wait for pods to be created
