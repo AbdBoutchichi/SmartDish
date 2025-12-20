@@ -1,0 +1,205 @@
+name: Log Components URLs
+
+on:
+  workflow_call:
+
+jobs:
+  log-urls:
+    name: Log All Component URLs
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - name: Download service URL artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: service-url
+          path: ./
+
+
+      - name: Display all component URLs
+        run: |
+          echo "╔═══════════════════════════════════════════════════════╗"
+          echo "║          COMMENT ACCEDER AUX SERVICES                 ║"
+          echo "╚═══════════════════════════════════════════════════════╝"
+          echo ""
+          
+          # Read the main service URL
+          if [ -f "service-url.txt" ]; then
+            SERVICE_URL=$(cat service-url.txt)
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "DEPLOIEMENT CI/CD (GitHub Actions)"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "URL interne (Minikube): $SERVICE_URL"
+            echo "Cette URL n'est PAS accessible depuis votre navigateur"
+            echo "Usage: Tests d'integration automatiques uniquement"
+            echo ""
+          else
+            echo "Service URL not found!"
+            echo ""
+          fi
+          
+          echo "╔═══════════════════════════════════════════════════════╗"
+          echo "║       ACCES VIA NAVIGATEUR WEB (2 OPTIONS)           ║"
+          echo "╚═══════════════════════════════════════════════════════╝"
+          echo ""
+          
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "OPTION 1 : Docker Compose Local (RECOMMANDE)"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "Depuis votre PC Windows :"
+          echo "   1. Ouvrir PowerShell dans le dossier du projet"
+          echo "   2. Executer : .\start-local-env.ps1"
+          echo "   3. Attendre 30 secondes"
+          echo ""
+          echo "URLs accessibles dans votre navigateur :"
+          echo "   API :           http://localhost:8080"
+          echo "   Health :        http://localhost:8080/health"
+          echo "   Status :        http://localhost:8080/api/status"
+          echo "   DB Test :       http://localhost:8080/api/database/test"
+          echo "   phpMyAdmin :    http://localhost:8081"
+          echo "   Mongo Express : http://localhost:8082"
+          echo "   MinIO :         http://localhost:9001"
+          echo ""
+          echo "Identifiants :"
+          echo "   MySQL/phpMyAdmin : root / password"
+          echo "   MongoDB :          admin / password"
+          echo "   MinIO :            minioadmin / minioadmin"
+          echo ""
+          
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "OPTION 2 : Kubernetes Local (Docker Desktop)"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "Prerequis :"
+          echo "   - Docker Desktop avec Kubernetes active"
+          echo ""
+          echo "Commandes :"
+          echo "   1. Executer : .\deploy-kubernetes-local.ps1"
+          echo "   2. Les URLs seront affichees automatiquement"
+          echo "   3. Exemple : http://localhost:<NodePort>"
+          echo ""
+          
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "Documentation Disponible"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "Consultez ces guides dans le depot :"
+          echo "   • GUIDE-DEMARRAGE-LOCAL.md"
+          echo "   • RESOLUTION-PROBLEMES-NEWMAN.md"
+          echo "   • CORRECTIONS-INTEGRATION-TESTS.md"
+          echo ""
+          
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "Commandes Rapides"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "Demarrer environnement local :"
+          echo "   .\start-local-env.ps1"
+          echo ""
+          echo "Arreter environnement :"
+          echo "   .\stop-local-env.ps1"
+          echo ""
+          echo "Tester avec Newman :"
+          echo "   .\test-newman-local.ps1"
+          echo ""
+          echo "Etat Docker Compose :"
+          echo "   docker-compose ps"
+          echo ""
+          
+          echo "╔═══════════════════════════════════════════════════════╗"
+          echo "║                 RESUME                                ║"
+          echo "╚═══════════════════════════════════════════════════════╝"
+          echo ""
+          echo "Tests d'integration CI/CD : REUSSIS"
+          echo "Application deployee dans Minikube (GitHub Actions)"
+          echo "Pour tester localement : .\start-local-env.ps1"
+          echo ""
+          echo "URLs Minikube (CI/CD uniquement) :"
+          if [ -f "service-url.txt" ]; then
+            SERVICE_URL=$(cat service-url.txt)
+            echo "   Minikube Internal: $SERVICE_URL"
+          fi
+          echo ""
+          echo "URLs Accessibles (Deploiement Local) :"
+          echo "   API:        http://localhost:8080"
+          echo "   phpMyAdmin: http://localhost:8081"
+          echo "   MinIO:      http://localhost:9001"
+          echo ""
+
+      - name: Create comprehensive URLs artifact
+        run: |
+          SERVICE_URL=$(cat service-url.txt 2>/dev/null || echo "N/A")
+          
+          cat > component-urls.txt << 'EOF'
+          ╔═══════════════════════════════════════════════════════╗
+          ║       COMMENT ACCEDER AUX SERVICES VIA NAVIGATEUR     ║
+          ╚═══════════════════════════════════════════════════════╝
+          
+          IMPORTANT : Les URLs Minikube du CI/CD ne sont PAS accessibles
+          depuis votre navigateur. Voici comment acceder reellement aux services :
+          
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          OPTION 1 : Docker Compose Local (RECOMMANDE)
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          
+          1. Ouvrir PowerShell dans le dossier du projet
+          2. Executer : .\start-local-env.ps1
+          3. Attendre 30 secondes
+          
+          URLs accessibles dans votre navigateur :
+             API :           http://localhost:8080
+             Health :        http://localhost:8080/health
+             Status :        http://localhost:8080/api/status
+             DB Test :       http://localhost:8080/api/database/test
+             phpMyAdmin :    http://localhost:8081
+             Mongo Express : http://localhost:8082
+             MinIO :         http://localhost:9001
+          
+          Identifiants :
+             MySQL/phpMyAdmin : root / password
+             MongoDB :          admin / password
+             MinIO :            minioadmin / minioadmin
+          
+          Arreter : .\stop-local-env.ps1
+          
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          OPTION 2 : Kubernetes Local (Docker Desktop)
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          
+          Prerequis : Docker Desktop avec Kubernetes active
+          
+          1. Executer : .\deploy-kubernetes-local.ps1
+          2. Les URLs NodePort seront affichees automatiquement
+          3. Ouvrir les URLs dans votre navigateur
+          
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          Documentation
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          
+          Consultez ces guides :
+          • GUIDE-DEMARRAGE-LOCAL.md - Setup complet en 30 secondes
+          • RESOLUTION-PROBLEMES-NEWMAN.md - Debugging
+          • CORRECTIONS-INTEGRATION-TESTS.md - Architecture CI/CD
+          
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          URL CI/CD (Tests Automatiques Uniquement)
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          
+          Minikube Internal (GitHub Actions):
+          EOF
+          
+          echo "  $SERVICE_URL" >> component-urls.txt
+          echo "" >> component-urls.txt
+          echo "Cette URL n'est pas accessible depuis votre PC." >> component-urls.txt
+          echo "   Elle est utilisee uniquement pour les tests Newman automatiques." >> component-urls.txt
+          
+          cat component-urls.txt
+
+      - name: Upload URLs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: component-urls
+          path: component-urls.txt
+          retention-days: 7
+

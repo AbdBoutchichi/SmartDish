@@ -101,7 +101,7 @@ public class UtilisateurServiceImpl implements UtilisateurService {
         log.info("📝 Mise à jour utilisateur - ID: {}", id);
 
         // Si un nouveau mot de passe est fourni, le hasher
-        if (updateDto.getNouveauMotDePasse() != null) {
+        if (updateDto.getNouveauMotDePasse() != null && !updateDto.getNouveauMotDePasse().trim().isEmpty()) {
             updateDto.setNouveauMotDePasse(passwordEncoder.encode(updateDto.getNouveauMotDePasse()));
             log.info("🔐 Mot de passe mis à jour pour l'utilisateur ID: {}", id);
         }

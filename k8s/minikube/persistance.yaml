@@ -1,0 +1,275 @@
+# MinIO Deployment (Object Storage for MS-Persistance)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: minio
+  template:
+    metadata:
+      labels:
+        app: minio
+    spec:
+      containers:
+      - name: minio
+        image: minio/minio:latest
+        args:
+        - server
+        - /data
+        - --console-address
+        - ":9001"
+        env:
+        - name: MINIO_ROOT_USER
+          value: "minioadmin"
+        - name: MINIO_ROOT_PASSWORD
+          value: "minioadmin"
+        ports:
+        - containerPort: 9000
+        - containerPort: 9001
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        readinessProbe:
+          httpGet:
+            path: /minio/health/ready
+            port: 9000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /minio/health/live
+            port: 9000
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+---
+# MinIO Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio
+spec:
+  selector:
+    app: minio
+  ports:
+  - name: api
+    port: 9000
+    targetPort: 9000
+  - name: console
+    port: 9001
+    targetPort: 9001
+  type: ClusterIP
+---
+# MySQL Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:8.0
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: "password"
+        - name: MYSQL_DATABASE
+          value: "soa_db"
+        ports:
+        - containerPort: 3306
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          tcpSocket:
+            port: 3306
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 5
+        readinessProbe:
+          exec:
+            command:
+            - mysqladmin
+            - ping
+            - -h
+            - "127.0.0.1"
+            - --protocol=TCP
+            - -uroot
+            - -ppassword
+          initialDelaySeconds: 15
+          periodSeconds: 3
+          timeoutSeconds: 2
+          failureThreshold: 15
+---
+# MySQL Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+spec:
+  selector:
+    app: mysql
+  ports:
+  - port: 3306
+    targetPort: 3306
+  type: ClusterIP
+---
+# MS-Persistance Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ms-persistance
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ms-persistance
+  template:
+    metadata:
+      labels:
+        app: ms-persistance
+    spec:
+      initContainers:
+      - name: wait-for-mysql
+        image: busybox:1.36
+        command: ['sh', '-c']
+        args:
+        - |
+          echo "⏳ Waiting for MySQL to be ready..."
+          until nc -z mysql 3306; do
+            echo "MySQL not ready yet, waiting 3s..."
+            sleep 3
+          done
+          echo "✅ MySQL is ready!"
+          sleep 5
+      - name: wait-for-minio
+        image: busybox:1.36
+        command: ['sh', '-c']
+        args:
+        - |
+          echo "⏳ Waiting for MinIO to be ready..."
+          until nc -z minio 9000; do
+            echo "MinIO not ready yet, waiting 2s..."
+            sleep 2
+          done
+          echo "✅ MinIO is ready!"
+      containers:
+      - name: ms-persistance
+        image: abdboutchichi/ms-persistance:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: SPRING_DATASOURCE_URL
+          value: "jdbc:mysql://mysql:3306/soa_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true"
+        - name: SPRING_DATASOURCE_USERNAME
+          value: "root"
+        - name: SPRING_DATASOURCE_PASSWORD
+          value: "password"
+        - name: SPRING_JPA_HIBERNATE_DDL_AUTO
+          value: "update"
+        - name: SPRING_JPA_SHOW_SQL
+          value: "true"
+        - name: SPRING_JPA_FORMAT_SQL
+          value: "true"
+        - name: SPRING_JPA_USE_SQL_COMMENTS
+          value: "false"
+        - name: SERVER_PORT
+          value: "8080"
+        - name: LOG_LEVEL_ROOT
+          value: "INFO"
+        - name: LOG_LEVEL_JDBC
+          value: "DEBUG"
+        - name: LOG_LEVEL_HIBERNATE_SQL
+          value: "INFO"
+        - name: LOG_LEVEL_HIBERNATE_BINDER
+          value: "INFO"
+        - name: ACTUATOR_ENDPOINTS
+          value: "health,info,metrics"
+        - name: ACTUATOR_HEALTH_DETAILS
+          value: "always"
+        # MinIO Configuration via SPRING_APPLICATION_JSON (highest priority)
+        - name: SPRING_APPLICATION_JSON
+          value: '{"minio":{"url":"http://minio:9000","endpoint":"http://minio:9000","access-key":"minioadmin","secret-key":"minioadmin","bucket-name":"utilisateurs","bucket":"utilisateurs"}}'
+        # MinIO Configuration - All possible formats as backup
+        - name: MINIO_URL
+          value: "http://minio:9000"
+        - name: MINIO_ENDPOINT
+          value: "http://minio:9000"
+        - name: MINIO_ROOT_USER
+          value: "minioadmin"
+        - name: MINIO_ROOT_PASSWORD
+          value: "minioadmin"
+        - name: MINIO_ACCESS_KEY
+          value: "minioadmin"
+        - name: MINIO_SECRET_KEY
+          value: "minioadmin"
+        - name: MINIO_BUCKET_NAME
+          value: "utilisateurs"
+        - name: MINIO_BUCKET
+          value: "utilisateurs"
+        - name: MINIO_HOST
+          value: "minio"
+        - name: MINIO_PORT
+          value: "9000"
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 20
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 120
+          periodSeconds: 15
+          timeoutSeconds: 5
+          failureThreshold: 5
+---
+# MS-Persistance Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: ms-persistance
+spec:
+  selector:
+    app: ms-persistance
+  ports:
+  - port: 8080
+    targetPort: 8080
+    nodePort: 30090
+  type: NodePort
+

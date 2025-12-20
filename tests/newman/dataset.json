@@ -1,0 +1,27 @@
+[
+  {
+    "testRun": "user-1",
+    "email": "test.user1@example.com",
+    "password": "SecurePass123!",
+    "nom": "Dupont",
+    "prenom": "Jean",
+    "role": "USER"
+  },
+  {
+    "testRun": "user-2",
+    "email": "test.user2@example.com",
+    "password": "SecurePass456!",
+    "nom": "Martin",
+    "prenom": "Marie",
+    "role": "USER"
+  },
+  {
+    "testRun": "admin-1",
+    "email": "admin.test@example.com",
+    "password": "AdminPass789!",
+    "nom": "Admin",
+    "prenom": "Test",
+    "role": "ADMIN"
+  }
+]
+

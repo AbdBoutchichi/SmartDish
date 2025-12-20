@@ -1,5 +1,6 @@
 package com.springbootTemplate.univ.soa.client;
 
+import com.springbootTemplate.univ.soa.dto.MsPersistanceUtilisateurDto;
 import com.springbootTemplate.univ.soa.dto.UtilisateurCreateDto;
 import com.springbootTemplate.univ.soa.dto.UtilisateurResponseDto;
 import com.springbootTemplate.univ.soa.dto.UtilisateurUpdateDto;
@@ -138,10 +139,35 @@ public class PersistanceClient {
         try {
             log.info("📤 Appel PUT vers ms-persistance: {}", url);
 
+            // 1. Récupérer l'utilisateur existant pour avoir tous les champs obligatoires
+            UtilisateurResponseDto existingUser = getUtilisateurById(id);
+            log.debug("Utilisateur existant récupéré: email={}, nom={}, prenom={}",
+                    existingUser.getEmail(), existingUser.getNom(), existingUser.getPrenom());
+
+            // 2. Construire un DTO complet pour MS-Persistance en fusionnant les données
+            MsPersistanceUtilisateurDto fullDto = MsPersistanceUtilisateurDto.builder()
+                    .id(existingUser.getId())
+                    .email(existingUser.getEmail()) // Obligatoire - on garde l'existant
+                    .nom(updateDto.getNom() != null ? updateDto.getNom() : existingUser.getNom())
+                    .prenom(updateDto.getPrenom() != null ? updateDto.getPrenom() : existingUser.getPrenom())
+                    .motDePasse(updateDto.getNouveauMotDePasse()) // null = pas de changement
+                    .role(existingUser.getRole())
+                    .actif(existingUser.getActif())
+                    .alimentsExclusIds(updateDto.getAlimentsExclusIds() != null ?
+                            updateDto.getAlimentsExclusIds() : existingUser.getAlimentsExclusIds())
+                    .dateCreation(existingUser.getDateCreation())
+                    .dateModification(existingUser.getDateModification())
+                    .build();
+
+            log.debug("DTO complet construit: email={}, nom={}, prenom={}, motDePasse={}",
+                    fullDto.getEmail(), fullDto.getNom(), fullDto.getPrenom(),
+                    fullDto.getMotDePasse() != null ? "[ENCODÉ]" : "[NON MODIFIÉ]");
+
+            // 3. Envoyer le DTO complet à MS-Persistance
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
 
-            HttpEntity<UtilisateurUpdateDto> request = new HttpEntity<>(updateDto, headers);
+            HttpEntity<MsPersistanceUtilisateurDto> request = new HttpEntity<>(fullDto, headers);
 
             ResponseEntity<UtilisateurResponseDto> response = restTemplate.exchange(
                     url,
@@ -156,6 +182,13 @@ public class PersistanceClient {
         } catch (HttpClientErrorException.NotFound e) {
             log.error("❌ Utilisateur non trouvé avec l'ID: {}", id);
             throw new UtilisateurNotFoundException("Utilisateur non trouvé avec l'ID: " + id);
+        } catch (HttpClientErrorException e) {
+            log.error("❌ Erreur HTTP {} lors de la mise à jour: {}",
+                    e.getStatusCode(), e.getResponseBodyAsString());
+            throw e;
+        } catch (Exception e) {
+            log.error("❌ Erreur inattendue lors de la mise à jour: {}", e.getMessage(), e);
+            throw new RuntimeException("Erreur lors de la mise à jour de l'utilisateur", e);
         }
     }
 
