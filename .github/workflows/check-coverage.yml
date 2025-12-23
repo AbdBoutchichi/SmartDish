@@ -24,27 +24,68 @@ jobs:
           name: application-jar
           path: target/
 
-      - name: Run JaCoCo coverage
+      - name: Run tests and generate coverage
         run: |
-          echo "📊 Generating code coverage report..."
-          mvn jacoco:report
+          echo "📊 Running tests and generating coverage report..."
+          mvn clean test jacoco:report
 
-      - name: Check coverage thresholds
+      - name: Extract and display coverage percentage
+        id: coverage
         run: |
-          echo "🔍 Checking coverage thresholds..."
-          mvn jacoco:check || echo "⚠️ Coverage below threshold"
+          echo "📈 Extracting coverage percentage..."
+          
+          # Extraire le pourcentage de couverture depuis jacoco.csv
+          if [ -f target/site/jacoco/jacoco.csv ]; then
+            # Calculer le pourcentage d'instructions couvertes
+            COVERED=$(awk -F',' 'NR>1 {sum+=$4} END {print sum}' target/site/jacoco/jacoco.csv)
+            MISSED=$(awk -F',' 'NR>1 {sum+=$3} END {print sum}' target/site/jacoco/jacoco.csv)
+            TOTAL=$((COVERED + MISSED))
+            
+            if [ $TOTAL -gt 0 ]; then
+              COVERAGE=$(awk "BEGIN {printf \"%.2f\", ($COVERED / $TOTAL) * 100}")
+              echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
+              
+              echo "=========================================="
+              echo "📊 CODE COVERAGE REPORT"
+              echo "=========================================="
+              echo "✅ Instructions Covered: $COVERED"
+              echo "❌ Instructions Missed: $MISSED"
+              echo "📊 Total Instructions: $TOTAL"
+              echo "🎯 Coverage: $COVERAGE%"
+              echo "=========================================="
+              
+              # Vérifier le seuil minimum de 60%
+              THRESHOLD=60
+              COVERAGE_INT=${COVERAGE%.*}
+              
+              if [ "$COVERAGE_INT" -ge "$THRESHOLD" ]; then
+                echo "✅ Coverage ($COVERAGE%) meets the minimum threshold ($THRESHOLD%)"
+                echo "status=success" >> $GITHUB_OUTPUT
+              else
+                echo "❌ Coverage ($COVERAGE%) is below the minimum threshold ($THRESHOLD%)"
+                echo "status=failed" >> $GITHUB_OUTPUT
+                exit 1
+              fi
+            else
+              echo "⚠️  No coverage data found"
+              exit 1
+            fi
+          else
+            echo "❌ Coverage report file not found"
+            exit 1
+          fi
 
       - name: Upload coverage reports
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: coverage-reports
           path: target/site/jacoco/
           retention-days: 7
 
-      - name: Display coverage summary
+      - name: Coverage Summary
+        if: always()
         run: |
-          if [ -f target/site/jacoco/index.html ]; then
-            echo "✅ Coverage report generated"
-            echo "📈 Check artifacts for detailed coverage report"
-          fi
-
+          echo "📋 Coverage Summary:"
+          echo "Coverage: ${{ steps.coverage.outputs.coverage }}%"
+          echo "Status: ${{ steps.coverage.outputs.status }}"
