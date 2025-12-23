@@ -633,26 +633,7 @@
       }
     },
     {
-      "name": "20. Delete Aliment",
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test(\"Status code is 204\", function () { pm.response.to.have.status(204); });"
-            ],
-            "type": "text/javascript"
-          }
-        }
-      ],
-      "request": {
-        "method": "DELETE",
-        "header": [],
-        "url": {"raw": "{{baseUrl}}/api/persistance/aliments/{{alimentId}}", "host": ["{{baseUrl}}"], "path": ["api", "persistance", "aliments", "{{alimentId}}"]}
-      }
-    },
-    {
-      "name": "21. Delete Validation Recette",
+      "name": "20. Delete Validation Recette",
       "event": [
         {
           "listen": "test",
@@ -671,7 +652,7 @@
       }
     },
     {
-      "name": "22. Delete Rejection Recette",
+      "name": "21. Delete Rejection Recette",
       "event": [
         {
           "listen": "test",
@@ -687,6 +668,25 @@
         "method": "DELETE",
         "header": [],
         "url": {"raw": "{{baseUrl}}/api/persistance/recettes/{{recetteRejectionId}}", "host": ["{{baseUrl}}"], "path": ["api", "persistance", "recettes", "{{recetteRejectionId}}"]}
+      }
+    },
+    {
+      "name": "22. Delete Aliment",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 204\", function () { pm.response.to.have.status(204); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {"raw": "{{baseUrl}}/api/persistance/aliments/{{alimentId}}", "host": ["{{baseUrl}}"], "path": ["api", "persistance", "aliments", "{{alimentId}}"]}
       }
     }
   ]
