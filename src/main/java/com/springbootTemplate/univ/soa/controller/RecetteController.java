@@ -1,6 +1,7 @@
 package com.springbootTemplate.univ.soa.controller;
 
 import com.springbootTemplate.univ.soa.dto.RecetteDTO;
+import com.springbootTemplate.univ.soa.exception.ResourceNotFoundException;
 import com.springbootTemplate.univ.soa.mapper.RecetteMapper;
 import com.springbootTemplate.univ.soa.model.Recette;
 import com.springbootTemplate.univ.soa.model.Recette.StatutRecette;
@@ -263,13 +264,14 @@ public class RecetteController {
      */
     @PutMapping("/{id}/valider")
     public ResponseEntity<RecetteDTO> validerRecette(@PathVariable Long id) {
-        return recetteService.findById(id).map(recette -> {
-            recette.setActif(true);
-            recette.setStatut(StatutRecette.VALIDEE);
-            recette.setMotifRejet(null);
-            Recette saved = recetteService.save(recette);
-            return ResponseEntity.ok(recetteMapper.toDTO(saved));
-        }).orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+        try {
+            Recette recette = recetteService.validerRecette(id);
+            return ResponseEntity.ok(recetteMapper.toDTO(recette));
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 
     /**
@@ -281,13 +283,14 @@ public class RecetteController {
         if (motif == null || motif.trim().isEmpty()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
-        return recetteService.findById(id).map(recette -> {
-            recette.setActif(false);
-            recette.setStatut(StatutRecette.REJETEE);
-            recette.setMotifRejet(motif.trim());
-            Recette saved = recetteService.save(recette);
-            return ResponseEntity.ok(recetteMapper.toDTO(saved));
-        }).orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+        try {
+            Recette recette = recetteService.rejeterRecette(id, motif.trim());
+            return ResponseEntity.ok(recetteMapper.toDTO(recette));
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 
     /**

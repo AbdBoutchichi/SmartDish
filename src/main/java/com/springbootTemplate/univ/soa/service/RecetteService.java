@@ -234,4 +234,34 @@ public class RecetteService {
         }
         recetteRepository.deleteById(id);
     }
+
+    /**
+     * Valider une recette (passer à VALIDEE et actif=true)
+     */
+    @Transactional
+    public Recette validerRecette(Long id) {
+        Recette recette = recetteRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Recette non trouvée avec l'ID: " + id));
+
+        recette.setActif(true);
+        recette.setStatut(Recette.StatutRecette.VALIDEE);
+        recette.setMotifRejet(null);
+
+        return recetteRepository.save(recette);
+    }
+
+    /**
+     * Rejeter une recette (passer à REJETEE avec motif)
+     */
+    @Transactional
+    public Recette rejeterRecette(Long id, String motif) {
+        Recette recette = recetteRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Recette non trouvée avec l'ID: " + id));
+
+        recette.setActif(false);
+        recette.setStatut(Recette.StatutRecette.REJETEE);
+        recette.setMotifRejet(motif);
+
+        return recetteRepository.save(recette);
+    }
 }
